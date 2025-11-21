@@ -534,12 +534,12 @@ message OciRegistryAuthentication {
 }
 
 message PciDevice {
-        PciDeviceState state = 1;
+  PciDeviceState state = 1;
 }
 
 enum PciDeviceState {
-        CLEAN = 0;
-        DIRTY = 1;
-        SCRUB = 2;
-        BUSY = 3;
+  PCI_DEVICE_STATE_CLEAN = 0;
+  PCI_DEVICE_STATE_DIRTY = 1;
+  PCI_DEVICE_STATE_SCRUB = 2;
+  PCI_DEVICE_STATE_BUSY = 3;
 }
