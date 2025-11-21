@@ -581,3 +581,14 @@ message OciRegistryAuthentication {
     string registry_token = 4;
   }
 }
+
+message PciDevice {
+        PciDeviceState state = 1;
+}
+
+enum PciDeviceState {
+        CLEAN = 0;
+        DIRTY = 1;
+        SCRUB = 2;
+        BUSY = 3;
+}
