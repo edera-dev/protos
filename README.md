@@ -1,7 +1,6 @@
 # Edera Protect
 
 https://edera.dev/
-
 https://github.com/edera-dev
 
 Protect computing workloads with advanced isolation technology.
