@@ -7,6 +7,7 @@ lint:
   enum_zero_value_suffix: _UNKNOWN
   ignore_only:
     ENUM_ZERO_VALUE_SUFFIX:
+      - protect/control/v1/common.proto
       - protect/control/v1/control.proto
     RPC_REQUEST_STANDARD_NAME:
       - protect/control/v1/control.proto
