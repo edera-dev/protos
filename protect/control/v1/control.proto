@@ -71,7 +71,7 @@ message GetHostStatusReply {
 
 message DeviceStateRequest {
   string name = 1;
-  protect.common.v1.PciDevice state = 2;
+  PciDevice state = 2;
 }
 
 message DeviceStateReply {}
@@ -414,7 +414,7 @@ message WorkloadChangedEvent {
 }
 
 message DeviceChangedEvent {
-  protect.common.v1.DeviceReferenceSpec device = 1;
+  DeviceReferenceSpec device = 1;
 }
 
 message ReadZoneMetricsRequest {
