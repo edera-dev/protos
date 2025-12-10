@@ -544,6 +544,7 @@ message StartWorkloadReply {}
 
 message StopWorkloadRequest {
   string workload_id = 1;
+  uint64 timeout = 2;
 }
 
 message StopWorkloadReply {}
