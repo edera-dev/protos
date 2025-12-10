@@ -356,16 +356,15 @@ message WorkloadBlockDeviceStatus {
   repeated WorkloadBlockDeviceInfo devices = 1;
 }
 
-message WorkloadMountInfo {
-  uint64 device_id = 1;
+message WorkloadMount {
   string tag = 2;
-  string host_directory = 3;
-  string host_file = 4;
+  string host_path = 3;
   string target_path = 5;
+  reserved 1, 4;
 }
 
 message WorkloadMountStatus {
-  repeated WorkloadMountInfo devices = 1;
+  repeated WorkloadMount mounts = 1;
 }
 
 message WorkloadExitStatus {
@@ -490,6 +489,7 @@ message ZoneScratchDiskSpecStaticBlock {
 
 message ZoneDeviceStatus {
   repeated ZoneDiskStatus disks = 1;
+  ZoneMountStatus mount = 2;
 }
 
 enum ZoneDiskStatusDiskPurpose {
@@ -505,6 +505,12 @@ message ZoneDiskStatus {
   string filesystem_type = 4;
   ZoneDiskStatusDiskPurpose purpose = 5;
   bool delete = 6;
+}
+
+message ZoneMountStatus {
+  uint64 device_id = 1;
+  string host_path = 2;
+  string tag = 3;
 }
 
 message OciRegistryUsernamePassword {
