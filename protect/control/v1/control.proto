@@ -65,6 +65,8 @@ service ControlService {
   rpc DialObjectCapability(stream DialObjectCapabilityRequest) returns (stream DialObjectCapabilityReply);
 
   rpc ListObjectCapabilities(ListObjectCapabilitiesRequest) returns (stream ListObjectCapabilitiesReply);
+
+  rpc SpireMetadata(stream SpireMetadataRequest) returns (stream SpireMetadataReply);
 }
 
 // Requests info about the current Edera daemon/host on this machine.
@@ -216,6 +218,14 @@ message ZoneKernelEventStreamUpdate {
 
 // Stops the current syscall event stream subscription.
 message ZoneKernelEventStreamStop {}
+
+message SpireMetadataRequest {
+  string zoneID = 1;
+}
+
+message SpireMetadataReply {
+  string identifier = 1;
+}
 
 // roughly maps to libscap's `scap_threadinfo` type.
 // See https://github.com/falcosecurity/libs/blob/af6e6f276bf3a847159b3cdfdbcc9efda9a620b9/userspace/libscap/scap.h#L244
