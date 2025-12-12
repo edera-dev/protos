@@ -55,6 +55,8 @@ service ControlService {
   rpc SetHostPowerManagementPolicy(SetHostPowerManagementPolicyRequest) returns (SetHostPowerManagementPolicyReply);
 
   rpc DialNetworkSocket(stream DialNetworkSocketRequest) returns (stream DialNetworkSocketReply);
+
+  rpc SpireMetadata(stream SpireMetadataRequest) returns (stream SpireMetadataReply);
 }
 
 message GetHostStatusRequest {}
@@ -117,6 +119,14 @@ message ZoneKernelEventStreamUpdate {
 }
 
 message ZoneKernelEventStreamStop {}
+
+message SpireMetadataRequest {
+  string zoneID = 1;
+}
+
+message SpireMetadataReply {
+  string identifier = 1;
+}
 
 // roughly maps to libscap's `scap_threadinfo` type.
 message ZoneKernelThreadInfo {
