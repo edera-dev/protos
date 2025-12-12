@@ -55,6 +55,7 @@ service ControlService {
   rpc SetHostPowerManagementPolicy(SetHostPowerManagementPolicyRequest) returns (SetHostPowerManagementPolicyReply);
 
   rpc DialNetworkSocket(stream DialNetworkSocketRequest) returns (stream DialNetworkSocketReply);
+  rpc DeviceStateUpdate(DeviceStateRequest) returns (DeviceStateReply);
 }
 
 message GetHostStatusRequest {}
@@ -67,6 +68,13 @@ message GetHostStatusReply {
   string host_ipv6 = 5;
   string host_mac = 6;
 }
+
+message DeviceStateRequest {
+  string name = 1;
+  PciDevice state = 2;
+}
+
+message DeviceStateReply {}
 
 message CreateZoneRequest {
   ZoneSpec spec = 1;
@@ -393,6 +401,7 @@ message WatchEventsReply {
   oneof event {
     ZoneChangedEvent zone_changed = 1;
     WorkloadChangedEvent workload_changed = 2;
+    DeviceChangedEvent device_changed = 3;
   }
 }
 
@@ -402,6 +411,10 @@ message ZoneChangedEvent {
 
 message WorkloadChangedEvent {
   Workload workload = 1;
+}
+
+message DeviceChangedEvent {
+  DeviceReferenceSpec device = 1;
 }
 
 message ReadZoneMetricsRequest {
