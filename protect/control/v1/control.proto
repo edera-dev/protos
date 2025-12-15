@@ -443,7 +443,7 @@ message ZoneKernelEventParam {
 message DiscoverServicesRequest {}
 
 message DiscoverServicesReply {
-  repeated protect.common.v1.ServiceEntry service_entry = 1;
+  repeated ServiceEntry service_entry = 1;
 }
 
 message SpireBundleRequest {}
@@ -555,7 +555,7 @@ message WorkloadChangedEvent {
 }
 
 message AdvertiseServiceEvent {
-  protect.common.v1.ServiceEntry service_entry = 1;
+  ServiceEntry service_entry = 1;
 }
 
 message UnadvertiseServiceEvent {
@@ -862,13 +862,13 @@ message ConfigureZoneNetworkReply {}
 
 message AdvertiseZoneServiceRequest {
   string uuid = 1;
-  protect.common.v1.ZoneServiceConfig config = 2;
+  ZoneServiceConfig config = 2;
 }
 
 message AdvertiseZoneServiceReply {}
 
 message UnadvertiseZoneServiceRequest {
-  protect.common.v1.ZoneServiceConfig config = 2;
+  ZoneServiceConfig config = 2;
 }
 
 message UnadvertiseZoneServiceReply {}
