@@ -224,6 +224,11 @@ message ZoneNetworkNeighborEntry {
   uint32 kind = 6;
 }
 
+message ZoneServiceConfig {
+  string zone_id = 1;
+  string service = 2;
+}
+
 message ZoneNetworkConfig {
   repeated ZoneNetworkInterfaceConfig interfaces = 1;
   repeated ZoneNetworkRoute routes = 2;
@@ -298,6 +303,11 @@ message NetworkReservation {
   string gateway_ipv4 = 5;
   string gateway_ipv6 = 6;
   string gateway_mac = 7;
+}
+
+message ServiceEntry {
+  string zone_id = 1;
+  string service_name = 2;
 }
 
 message WorkloadSpec {
