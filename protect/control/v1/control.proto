@@ -33,9 +33,14 @@ service ControlService {
   rpc ResolveZoneIds(ResolveZoneIdsRequest) returns (ResolveZoneIdsReply);
   rpc GetZone(GetZoneRequest) returns (GetZoneReply);
   rpc ListZones(ListZonesRequest) returns (stream ListZonesReply);
+  rpc DiscoverServices(DiscoverServicesRequest) returns (stream DiscoverServicesReply);
+  rpc GetSpireBundle(SpireBundleRequest) returns (SpireBundleReply);
 
   rpc UpdateZoneResources(UpdateZoneResourcesRequest) returns (UpdateZoneResourcesReply);
   rpc ConfigureZoneNetwork(ConfigureZoneNetworkRequest) returns (ConfigureZoneNetworkReply);
+
+  rpc AdvertiseZoneService(AdvertiseZoneServiceRequest) returns (AdvertiseZoneServiceReply);
+  rpc UnadvertiseZoneService(UnadvertiseZoneServiceRequest) returns (UnadvertiseZoneServiceReply);
 
   rpc AttachZoneConsole(stream ZoneConsoleRequest) returns (stream ZoneConsoleReply);
   rpc ExecuteZoneCommand(stream ExecuteZoneCommandRequest) returns (stream ExecuteZoneCommandReply);
@@ -435,6 +440,18 @@ message ZoneKernelEventParam {
   string param_type_pretty = 5;
 }
 
+message DiscoverServicesRequest {}
+
+message DiscoverServicesReply {
+  repeated protect.common.v1.ServiceEntry service_entry = 1;
+}
+
+message SpireBundleRequest {}
+
+message SpireBundleReply {
+  string bundle = 1;
+}
+
 // Client stream message for `ExecuteZoneCommand`. The first message sent must be an
 // `ExecuteZoneCommandStart`; subsequent messages carry stdin data or terminal resizes.
 message ExecuteZoneCommandRequest {
@@ -522,6 +539,8 @@ message WatchEventsReply {
   oneof event {
     ZoneChangedEvent zone_changed = 1;
     WorkloadChangedEvent workload_changed = 2;
+    AdvertiseServiceEvent advertise_service = 3;
+    UnadvertiseServiceEvent unadvertise_service = 4;
   }
 }
 
@@ -533,6 +552,14 @@ message ZoneChangedEvent {
 // Carries the full current state of a workload whose state has changed.
 message WorkloadChangedEvent {
   Workload workload = 1;
+}
+
+message AdvertiseServiceEvent {
+  protect.common.v1.ServiceEntry service_entry = 1;
+}
+
+message UnadvertiseServiceEvent {
+  string uuid = 1;
 }
 
 // Reads the most recently collected metrics (memory, CPU, etc.) for the given zone.
@@ -832,6 +859,19 @@ message ConfigureZoneNetworkRequest {
 }
 
 message ConfigureZoneNetworkReply {}
+
+message AdvertiseZoneServiceRequest {
+  string uuid = 1;
+  protect.common.v1.ZoneServiceConfig config = 2;
+}
+
+message AdvertiseZoneServiceReply {}
+
+message UnadvertiseZoneServiceRequest {
+  protect.common.v1.ZoneServiceConfig config = 2;
+}
+
+message UnadvertiseZoneServiceReply {}
 
 // Client stream message for `DialNetworkSocket`. The first message must be a
 // `DialNetworkSocketStart`. Subsequent messages carry data to write to the connection.
