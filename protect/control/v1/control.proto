@@ -66,7 +66,7 @@ service ControlService {
 
   rpc ListObjectCapabilities(ListObjectCapabilitiesRequest) returns (stream ListObjectCapabilitiesReply);
 
-  rpc SpireMetadata(stream SpireMetadataRequest) returns (stream SpireMetadataReply);
+  rpc SpireMetadata(SpireMetadataRequest) returns (SpireMetadataReply);
 }
 
 // Requests info about the current Edera daemon/host on this machine.
