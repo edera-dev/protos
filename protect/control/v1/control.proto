@@ -66,6 +66,7 @@ message GetHostStatusReply {
   string host_ipv4 = 4;
   string host_ipv6 = 5;
   string host_mac = 6;
+  optional uint64 hyp_free_mem = 7;
 }
 
 message CreateZoneRequest {
