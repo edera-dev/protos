@@ -25,6 +25,16 @@ message ZoneSpec {
   ZoneVirtualizationOptionsSpec virtualization_options = 9;
   ZoneScratchDiskSpec scratch_disk = 10;
   repeated OciImageSpec addons = 11;
+  ZoneControlApiSpec control_api = 12;
+}
+
+enum ZoneControlApiAccess {
+  ZONE_CONTROL_API_ACCESS_DENY = 0;
+  ZONE_CONTROL_API_ACCESS_ALLOW = 1;
+}
+
+message ZoneControlApiSpec {
+  ZoneControlApiAccess access = 1;
 }
 
 enum ZoneResourceAdjustmentPolicy {
