@@ -5,10 +5,16 @@ package protect.control.v1;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
+message ResourceOrigin {
+  string zone_id = 1;
+  string workload_id = 2;
+}
+
 message Zone {
   string id = 1;
   ZoneSpec spec = 2;
   ZoneStatus status = 3;
+  ResourceOrigin origin = 4;
 }
 
 message ZoneSpec {
@@ -396,6 +402,7 @@ message Workload {
   string id = 1;
   WorkloadSpec spec = 2;
   WorkloadStatus status = 3;
+  ResourceOrigin origin = 4;
 }
 
 enum HostCpuTopologyClass {
