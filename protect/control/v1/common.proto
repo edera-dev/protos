@@ -482,6 +482,7 @@ message ZoneScratchDiskSpec {
   oneof backend {
     ZoneScratchDiskSpecImage image = 1;
     ZoneScratchDiskSpecStaticBlock block = 2;
+    ZoneScratchDiskInternalTmpfs internal_tmpfs = 3;
   }
 }
 
@@ -492,6 +493,13 @@ message ZoneScratchDiskSpecImage {
 message ZoneScratchDiskSpecStaticBlock {
   string path = 1;
   string device = 2;
+}
+
+message ZoneScratchDiskInternalTmpfs {
+  oneof size {
+    uint32 percent = 1;
+    uint64 exact = 2;
+  }
 }
 
 message ZoneDeviceStatus {
