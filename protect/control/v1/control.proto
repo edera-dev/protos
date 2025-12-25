@@ -7,6 +7,7 @@ import "protect/control/v1/common.proto";
 service ControlService {
   rpc GetHostStatus(GetHostStatusRequest) returns (GetHostStatusReply);
   rpc SnoopIdm(SnoopIdmRequest) returns (stream SnoopIdmReply);
+  rpc SnoopControl(SnoopControlRequest) returns (stream SnoopControlReply);
   rpc GetHostCpuTopology(GetHostCpuTopologyRequest) returns (GetHostCpuTopologyReply);
 
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesReply);
@@ -424,6 +425,30 @@ message SnoopIdmPacket {
   string from = 1;
   string to = 2;
   bytes packet = 3;
+}
+
+message SnoopControlRequest {}
+
+message SnoopControlReply {
+  repeated SnoopControlPacket packets = 1;
+  uint64 skipped = 2;
+}
+
+enum SnoopControlPacketForm {
+  SNOOP_CONTROL_PACKET_FORM_UNKNOWN = 0;
+  SNOOP_CONTROL_PACKET_FORM_REQUEST = 1;
+  SNOOP_CONTROL_PACKET_FORM_ERROR = 2;
+  SNOOP_CONTROL_PACKET_FORM_RESPONSE = 3;
+}
+
+message SnoopControlPacket {
+  uint64 id = 1;
+  ResourceOrigin origin = 2;
+  string service = 3;
+  string method = 4;
+  SnoopControlPacketForm form = 5;
+  string payload = 6;
+  bool closed = 7;
 }
 
 message PullImageRequest {
