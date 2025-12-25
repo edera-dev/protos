@@ -5,10 +5,17 @@ package protect.control.v1;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
+message ResourceOrigin {
+  string zone_id = 1;
+  string workload_id = 2;
+  string user_agent = 3;
+}
+
 message Zone {
   string id = 1;
   ZoneSpec spec = 2;
   ZoneStatus status = 3;
+  ResourceOrigin origin = 4;
 }
 
 message ZoneSpec {
@@ -25,6 +32,16 @@ message ZoneSpec {
   ZoneVirtualizationOptionsSpec virtualization_options = 9;
   ZoneScratchDiskSpec scratch_disk = 10;
   repeated OciImageSpec addons = 11;
+  ZoneControlApiSpec control_api = 12;
+}
+
+enum ZoneControlApiAccess {
+  ZONE_CONTROL_API_ACCESS_DENY = 0;
+  ZONE_CONTROL_API_ACCESS_ALLOW = 1;
+}
+
+message ZoneControlApiSpec {
+  ZoneControlApiAccess access = 1;
 }
 
 enum ZoneResourceAdjustmentPolicy {
@@ -386,6 +403,7 @@ message Workload {
   string id = 1;
   WorkloadSpec spec = 2;
   WorkloadStatus status = 3;
+  ResourceOrigin origin = 4;
 }
 
 enum HostCpuTopologyClass {
