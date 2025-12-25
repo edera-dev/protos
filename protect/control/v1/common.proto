@@ -8,6 +8,7 @@ import "google/protobuf/timestamp.proto";
 message ResourceOrigin {
   string zone_id = 1;
   string workload_id = 2;
+  string user_agent = 3;
 }
 
 message Zone {
