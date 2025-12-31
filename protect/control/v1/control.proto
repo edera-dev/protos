@@ -404,6 +404,8 @@ message WatchEventsReply {
   oneof event {
     ZoneChangedEvent zone_changed = 1;
     WorkloadChangedEvent workload_changed = 2;
+    AdvertiseServiceEvent advertise_service = 3;
+    UnadvertiseServiceEvent unadvertise_service = 4;
   }
 }
 
@@ -413,6 +415,14 @@ message ZoneChangedEvent {
 
 message WorkloadChangedEvent {
   Workload workload = 1;
+}
+
+message AdvertiseServiceEvent {
+  ServiceEntry service_entry = 1;
+}
+
+message UnadvertiseServiceEvent {
+  string uuid = 1;
 }
 
 message ReadZoneMetricsRequest {
