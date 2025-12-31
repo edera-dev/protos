@@ -614,14 +614,13 @@ message ConfigureZoneNetworkRequest {
 message ConfigureZoneNetworkReply {}
 
 message AdvertiseZoneServiceRequest {
-  string zone_id = 1;
+  string uuid = 1;
   ZoneServiceConfig config = 2;
 }
 
 message AdvertiseZoneServiceReply {}
 
 message UnadvertiseZoneServiceRequest {
-  string zone_id = 1;
   ZoneServiceConfig config = 2;
 }
 

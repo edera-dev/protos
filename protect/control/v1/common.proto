@@ -237,7 +237,8 @@ message ZoneNetworkNeighborEntry {
 }
 
 message ZoneServiceConfig {
-  string service = 1;
+  string zone_id = 1;
+  string service = 2;
 }
 
 message ZoneNetworkConfig {
@@ -317,7 +318,7 @@ message NetworkReservation {
 }
 
 message ServiceEntry {
-  string uuid = 1;
+  string zone_id = 1;
   string service_name = 2;
 }
 
