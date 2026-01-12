@@ -310,6 +310,7 @@ message WorkloadSpec {
   WorkloadSecuritySpec security = 7;
   repeated WorkloadScratchMount scratch_mount = 8;
   repeated CgroupLimit cgroup_limits = 9;
+  string hostname = 10;
 }
 
 message CgroupLimit {
