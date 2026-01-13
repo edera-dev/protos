@@ -154,6 +154,17 @@ message DeviceReferenceSpec {
   string name = 1;
 }
 
+message WorkloadBlockDeviceSpec {
+  string target_path = 1;
+  string device_path = 2;
+  BlockDeviceMountOptions mount_options = 3;
+}
+
+message BlockDeviceMountOptions {
+   bool readonly = 1;
+   string permissions = 2;
+}
+
 message ZoneStatus {
   ZoneState state = 1;
   ZoneNetworkStatus network_status = 2;
@@ -310,6 +321,7 @@ message WorkloadSpec {
   WorkloadSecuritySpec security = 7;
   repeated WorkloadScratchMount scratch_mount = 8;
   repeated CgroupLimit cgroup_limits = 9;
+  repeated WorkloadBlockDeviceSpec block_devices = 10;
 }
 
 message CgroupLimit {
@@ -356,7 +368,9 @@ message WorkloadStatus {
 message WorkloadBlockDeviceInfo {
   uint32 block_index = 1;
   uint64 device_id = 2;
-  string loop_device = 3;
+  reserved  3;
+  string device = 4;
+  bool loop_dev = 5;
 }
 
 message WorkloadBlockDeviceStatus {
