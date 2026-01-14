@@ -322,7 +322,7 @@ message WorkloadSpec {
   repeated WorkloadScratchMount scratch_mount = 8;
   repeated CgroupLimit cgroup_limits = 9;
   string hostname = 10;
-  repeated WorkloadBlockDeviceSpec block_devices = 10;
+  repeated WorkloadBlockDeviceSpec block_devices = 11;
 }
 
 message CgroupLimit {
