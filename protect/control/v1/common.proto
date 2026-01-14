@@ -161,8 +161,8 @@ message WorkloadBlockDeviceSpec {
 }
 
 message BlockDeviceMountOptions {
-   bool readonly = 1;
-   string permissions = 2;
+  bool readonly = 1;
+  string permissions = 2;
 }
 
 message ZoneStatus {
@@ -369,7 +369,7 @@ message WorkloadStatus {
 message WorkloadBlockDeviceInfo {
   uint32 block_index = 1;
   uint64 device_id = 2;
-  reserved  3;
+  reserved 3;
   string device = 4;
   bool loop_dev = 5;
 }
