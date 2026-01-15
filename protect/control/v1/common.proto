@@ -152,7 +152,7 @@ message AnnotationSpec {
 }
 
 message DeviceReferenceSpec {
-  string name = 1;
+  string id = 1;
 }
 
 message WorkloadBlockDeviceSpec {
@@ -506,10 +506,41 @@ message OciImageProgressIndicationCompleted {
   bool is_bytes = 3;
 }
 
-message DeviceInfo {
+message PciDeviceSpec {
+  string location = 1;
+  bool permissive = 2;
+}
+
+message BlockDeviceSpec {
+  string device_path = 1;
+}
+
+message DeviceSpec {
   string name = 1;
-  bool claimed = 2;
-  string owner_zone = 3;
+  oneof device_type {
+    PciDeviceSpec pci = 2;
+    BlockDeviceSpec block = 3;
+  }
+  repeated string modules = 4;
+  repeated KernelModuleParameter module_parameters = 5;
+}
+
+enum DeviceState {
+  DEVICE_STATE_UNKNOWN = 0;
+  DEVICE_STATE_AVAILABLE = 1;
+  DEVICE_STATE_TAINTED = 2;
+  DEVICE_STATE_USED = 3;
+}
+
+message DeviceStatus {
+  DeviceState state = 1;
+  string zone_id = 2;
+}
+
+message Device {
+  string id = 1;
+  DeviceSpec spec = 2;
+  DeviceStatus status = 3;
 }
 
 message ZoneScratchDiskSpec {
@@ -580,15 +611,4 @@ message OciRegistryAuthentication {
     // an exact bearer access token
     string registry_token = 4;
   }
-}
-
-message PciDevice {
-  PciDeviceState state = 1;
-}
-
-enum PciDeviceState {
-  PCI_DEVICE_STATE_CLEAN = 0;
-  PCI_DEVICE_STATE_DIRTY = 1;
-  PCI_DEVICE_STATE_SCRUB = 2;
-  PCI_DEVICE_STATE_BUSY = 3;
 }

@@ -9,7 +9,11 @@ service ControlService {
   rpc SnoopIdm(SnoopIdmRequest) returns (stream SnoopIdmReply);
   rpc GetHostCpuTopology(GetHostCpuTopologyRequest) returns (GetHostCpuTopologyReply);
 
+  rpc CreateDevice(CreateDeviceRequest) returns (CreateDeviceReply);
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesReply);
+  rpc UpdateDeviceState(UpdateDeviceStateRequest) returns (UpdateDeviceStateReply);
+  rpc DestroyDevice(DestroyDeviceRequest) returns (DestroyDeviceReply);
+  rpc ResolveDeviceIds(ResolveDeviceIdsRequest) returns (ResolveDeviceIdsReply);
 
   rpc CreateNetworkReservation(CreateNetworkReservationRequest) returns (CreateNetworkReservationReply);
   rpc DestroyNetworkReservation(DestroyNetworkReservationRequest) returns (DestroyNetworkReservationReply);
@@ -55,7 +59,6 @@ service ControlService {
   rpc SetHostPowerManagementPolicy(SetHostPowerManagementPolicyRequest) returns (SetHostPowerManagementPolicyReply);
 
   rpc DialNetworkSocket(stream DialNetworkSocketRequest) returns (stream DialNetworkSocketReply);
-  rpc DeviceStateUpdate(DeviceStateRequest) returns (DeviceStateReply);
 }
 
 message GetHostStatusRequest {}
@@ -74,12 +77,12 @@ message GetHostStatusReply {
   optional string protect_branch = 11;
 }
 
-message DeviceStateRequest {
-  string name = 1;
-  PciDevice state = 2;
+message UpdateDeviceStateRequest {
+  string id = 1;
+  DeviceState state = 2;
 }
 
-message DeviceStateReply {}
+message UpdateDeviceStateReply {}
 
 message CreateZoneRequest {
   ZoneSpec spec = 1;
@@ -419,7 +422,7 @@ message WorkloadChangedEvent {
 }
 
 message DeviceChangedEvent {
-  DeviceReferenceSpec device = 1;
+  Device device = 1;
 }
 
 message ReadZoneMetricsRequest {
@@ -493,7 +496,8 @@ message ListImagesReply {
 message ListDevicesRequest {}
 
 message ListDevicesReply {
-  repeated DeviceInfo devices = 1;
+  reserved 1;
+  repeated Device devices = 2;
 }
 
 message GetHostCpuTopologyRequest {}
@@ -629,4 +633,26 @@ message DialNetworkSocketData {
 
 message DialNetworkSocketReply {
   DialNetworkSocketData data = 1;
+}
+
+message CreateDeviceRequest {
+  DeviceSpec spec = 1;
+}
+
+message CreateDeviceReply {
+  string id = 1;
+}
+
+message DestroyDeviceRequest {
+  string id = 1;
+}
+
+message DestroyDeviceReply {}
+
+message ResolveDeviceIdsRequest {
+  string name = 1;
+}
+
+message ResolveDeviceIdsReply {
+  string device_ids = 1;
 }
