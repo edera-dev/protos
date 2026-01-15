@@ -11,6 +11,7 @@ service ControlService {
 
   rpc CreateDevice(CreateDeviceRequest) returns (CreateDeviceReply);
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesReply);
+  rpc GetDevice(GetDeviceRequest) returns (GetDeviceReply);
   rpc UpdateDeviceState(UpdateDeviceStateRequest) returns (UpdateDeviceStateReply);
   rpc DestroyDevice(DestroyDeviceRequest) returns (DestroyDeviceReply);
   rpc ResolveDeviceIds(ResolveDeviceIdsRequest) returns (ResolveDeviceIdsReply);
@@ -655,4 +656,12 @@ message ResolveDeviceIdsRequest {
 
 message ResolveDeviceIdsReply {
   repeated string device_ids = 1;
+}
+
+message GetDeviceRequest {
+  string device_id = 1;
+}
+
+message GetDeviceReply {
+  Device device = 1;
 }
