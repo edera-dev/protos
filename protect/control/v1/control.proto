@@ -78,7 +78,7 @@ message GetHostStatusReply {
 }
 
 message UpdateDeviceStateRequest {
-  string id = 1;
+  string device_id = 1;
   DeviceState state = 2;
 }
 
@@ -644,7 +644,7 @@ message CreateDeviceReply {
 }
 
 message DestroyDeviceRequest {
-  string id = 1;
+  string device_id = 1;
 }
 
 message DestroyDeviceReply {}
@@ -654,5 +654,5 @@ message ResolveDeviceIdsRequest {
 }
 
 message ResolveDeviceIdsReply {
-  string device_ids = 1;
+  repeated string device_ids = 1;
 }
