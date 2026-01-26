@@ -509,6 +509,16 @@ message OciImageProgressIndicationCompleted {
 message PciDeviceSpec {
   string location = 1;
   bool permissive = 2;
+  bool msi_translate = 3;
+  bool power_management = 4;
+  PciDeviceRdmReservePolicy rdm_reserve_policy = 5;
+}
+
+enum PciDeviceRdmReservePolicy {
+  PCI_DEVICE_RDM_RESERVE_POLICY_UNKNOWN = 0;
+  PCI_DEVICE_RDM_RESERVE_POLICY_STRICT = 1;
+  PCI_DEVICE_RDM_RESERVE_POLICY_RELAXED = 2;
+
 }
 
 message BlockDeviceSpec {
