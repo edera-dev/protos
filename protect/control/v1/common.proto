@@ -343,6 +343,7 @@ message WorkloadSecuritySpec {
   bool disable_all_namespaces = 6;
   repeated ProcessNamespace disable_namespaces = 7;
   bool read_only_rootfs = 8;
+  bool no_new_privs = 9;
 }
 
 enum WorkloadState {
