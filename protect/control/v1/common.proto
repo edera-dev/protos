@@ -548,6 +548,11 @@ enum DeviceState {
 message DeviceStatus {
   DeviceState state = 1;
   string zone_id = 2;
+  DeviceErrorStatus error_status = 3;
+}
+
+message DeviceErrorStatus {
+  string message = 1;
 }
 
 message Device {
