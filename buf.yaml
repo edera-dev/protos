@@ -16,5 +16,13 @@ lint:
   use:
     - STANDARD
 breaking:
+  ignore_only:
+    EXTENSION_NO_DELETE:
+      - protect/control/v1/
+    ENUM_VALUE_NO_DELETE:
+      - protect/control/v1/
+    FIELD_NO_DELETE:
+      - protect/control/v1/
   use:
+    - WIRE_JSON
     - FILE
