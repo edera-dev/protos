@@ -67,6 +67,10 @@ message GetHostStatusReply {
   string host_ipv6 = 5;
   string host_mac = 6;
   optional uint64 hyp_free_mem = 7;
+  optional string protect_git_sha = 8;
+  optional string protect_last_tag = 9;
+  optional uint64 protect_revs_since_tag = 10;
+  optional string protect_branch = 11;
 }
 
 message CreateZoneRequest {
