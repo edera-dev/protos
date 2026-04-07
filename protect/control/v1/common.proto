@@ -133,6 +133,7 @@ message ProcessSpec {
   bool stdout = 9;
   bool stderr = 10;
   reserved 11, 12;
+  repeated int64 additional_gids = 13;
 }
 
 message MountSpec {
