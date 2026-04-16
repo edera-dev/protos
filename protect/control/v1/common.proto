@@ -330,7 +330,8 @@ message WorkloadSpec {
   string hostname = 10;
   repeated WorkloadBlockDeviceSpec block_devices = 11;
   optional int32 oom_score_adj = 12;
-  repeated WorkloadPciDeviceSpec pci_devices = 13;
+  repeated DeviceReferenceSpec devices = 13;
+  //repeated WorkloadPciDeviceSpec pci_devices = 13;
 }
 
 message CgroupLimit {
