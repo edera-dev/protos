@@ -14,7 +14,8 @@ service ControlService {
   rpc GetDevice(GetDeviceRequest) returns (GetDeviceReply);
   rpc UpdateDeviceState(UpdateDeviceStateRequest) returns (UpdateDeviceStateReply);
   rpc DestroyDevice(DestroyDeviceRequest) returns (DestroyDeviceReply);
-  rpc ResolveDeviceIds(ResolveDeviceIdsRequest) returns (ResolveDeviceIdsReply);
+  rpc ResolveAndValidateDevice(ResolveAndValidateDeviceRequest) returns (ResolveAndValidateDeviceReply);
+  rpc UpdateZoneDevices(UpdateZoneDevicesRequest) returns (UpdateZoneDevicesReply);
 
   rpc CreateNetworkReservation(CreateNetworkReservationRequest) returns (CreateNetworkReservationReply);
   rpc DestroyNetworkReservation(DestroyNetworkReservationRequest) returns (DestroyNetworkReservationReply);
@@ -84,6 +85,21 @@ message UpdateDeviceStateRequest {
 }
 
 message UpdateDeviceStateReply {}
+
+message UpdateZoneDevicesRequest {
+  string zone_id = 1;
+  repeated DeviceReferenceSpec devices = 2;
+}
+
+message GetDeviceRequest {
+  string device_id = 1;
+}
+
+message GetDeviceReply {
+  Device device = 1;
+}
+
+message UpdateZoneDevicesReply {}
 
 message CreateZoneRequest {
   ZoneSpec spec = 1;
@@ -650,18 +666,13 @@ message DestroyDeviceRequest {
 
 message DestroyDeviceReply {}
 
-message ResolveDeviceIdsRequest {
-  string name = 1;
+message ResolveAndValidateDeviceRequest {
+  oneof DeviceRequest {
+    string name = 1;
+    string location = 2;
+  }
 }
 
-message ResolveDeviceIdsReply {
-  repeated string device_ids = 1;
-}
-
-message GetDeviceRequest {
+message ResolveAndValidateDeviceReply {
   string device_id = 1;
-}
-
-message GetDeviceReply {
-  Device device = 1;
 }

@@ -155,14 +155,14 @@ message DeviceReferenceSpec {
   string id = 1;
 }
 
+message WorkloadPciDeviceSpec {
+  string location = 1;
+}
+
 message WorkloadBlockDeviceSpec {
   string target_path = 1;
   string device_path = 2;
   BlockDeviceMountOptions mount_options = 3;
-}
-
-message WorkloadPciDeviceSpec {
-  string location = 1;
 }
 
 message BlockDeviceMountOptions {
@@ -331,7 +331,6 @@ message WorkloadSpec {
   repeated WorkloadBlockDeviceSpec block_devices = 11;
   optional int32 oom_score_adj = 12;
   repeated DeviceReferenceSpec devices = 13;
-  //repeated WorkloadPciDeviceSpec pci_devices = 13;
 }
 
 message CgroupLimit {
@@ -548,7 +547,7 @@ enum DeviceState {
 
 message DeviceStatus {
   DeviceState state = 1;
-  string zone_id = 2;
+  string owner_id = 2;
   DeviceErrorStatus error_status = 3;
 }
 
