@@ -581,8 +581,11 @@ message IdmQueueMetrics {
   IdmQueueDepth client_tx_control = 1;
   // IdmClient's outbound bulk queue (drained by the bulk writer task).
   IdmQueueDepth client_tx_bulk = 2;
-  // The per-zone `feed` Sender: inbound packets from the ring backend
-  // flow into here for the IdmClient reader to consume.
+  // The per-zone control-class `feed` Sender: inbound control packets
+  // from the control ring backend flow into here for the IdmClient
+  // reader to consume. Split from `feed_bulk` so a backpressured bulk
+  // consumer cannot head-of-line block control RPCs / heartbeats /
+  // stream closes.
   IdmQueueDepth feed = 3;
   // Control-channel per-backend processor input queue (the channel
   // through which the daemon hands off encoded packets to the ring
@@ -591,6 +594,11 @@ message IdmQueueMetrics {
   // Bulk-channel per-backend processor input queue. Daemon does not
   // currently emit on bulk; this is normally empty.
   IdmQueueDepth backend_bulk_in = 5;
+
+  // Per-zone bulk-class `feed` Sender. Populated by the bulk
+  // XenIdmService's drain_rx; consumed by the same IdmClient reader as
+  // `feed` but on a separate select arm.
+  IdmQueueDepth feed_bulk = 8;
 
   // Pending-outbound buffers held centrally by each XenIdmService while
   // a backend has not yet completed handshake. Cleared when handshake
@@ -608,6 +616,7 @@ message IdmQueueAggregate {
   uint64 client_tx_control_capacity = 2;
   uint64 client_tx_bulk_len = 3;
   uint64 client_tx_bulk_capacity = 4;
+  // Control-class feed mpsc, aggregated across zones.
   uint64 feed_len = 5;
   uint64 feed_capacity = 6;
   uint64 backend_control_in_len = 7;
@@ -620,6 +629,11 @@ message IdmQueueAggregate {
   // Central XenIdmService input_receiver depths (one per channel class).
   IdmQueueDepth control_central_in = 13;
   IdmQueueDepth bulk_central_in = 14;
+  // Bulk-class feed mpsc, aggregated across zones. Split from `feed_*`
+  // (which is control-only) so saturation of one class is visible
+  // independently of the other.
+  uint64 feed_bulk_len = 15;
+  uint64 feed_bulk_capacity = 16;
 }
 
 // Snapshot of a single tokio mpsc-like queue.
