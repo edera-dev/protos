@@ -34,6 +34,7 @@ service ControlService {
   rpc AttachZoneConsole(stream ZoneConsoleRequest) returns (stream ZoneConsoleReply);
   rpc ExecuteZoneCommand(stream ExecuteZoneCommandRequest) returns (stream ExecuteZoneCommandReply);
   rpc ReadZoneMetrics(ReadZoneMetricsRequest) returns (ReadZoneMetricsReply);
+  rpc ReadIdmMetrics(ReadIdmMetricsRequest) returns (ReadIdmMetricsReply);
   rpc MonitorZoneKernelEvents(stream MonitorZoneKernelEventRequest) returns (stream MonitorZoneKernelEventReply);
 
   rpc CreateWorkload(CreateWorkloadRequest) returns (CreateWorkloadReply);
@@ -415,6 +416,218 @@ message ReadZoneMetricsRequest {
 
 message ReadZoneMetricsReply {
   MetricNode root = 1;
+}
+
+// Snapshot of Inter-Domain Messaging (IDM) traffic and pipeline state. Counter
+// fields are cumulative since the daemon (or the underlying ring backend, for
+// per-channel ring counters) was created. Clients are expected to compute deltas
+// between successive samples to derive rates; the daemon does not pre-divide by
+// time. Each reply carries `timestamp_unix_ns` so the client can compute exact
+// elapsed time between two snapshots.
+message ReadIdmMetricsRequest {}
+
+message ReadIdmMetricsReply {
+  // Wall-clock time at which the snapshot was assembled, in nanoseconds since
+  // the Unix epoch. Used by clients to compute deltas between two snapshots.
+  uint64 timestamp_unix_ns = 1;
+
+  // Aggregate metrics summed across all zones currently known to the daemon.
+  IdmGlobalMetrics global = 2;
+
+  // Per-zone metrics. Order is unspecified.
+  repeated ZoneIdmMetrics zones = 3;
+}
+
+// Aggregate metrics across the entire IDM subsystem.
+message IdmGlobalMetrics {
+  // Number of zones currently tracked by the IDM service.
+  uint32 zone_count = 1;
+
+  // Number of subscribers currently attached to the SnoopFanOut.
+  uint32 snoop_subscriber_count = 2;
+
+  // Aggregate counters summed across every zone, broken down by ring class.
+  IdmChannelMetrics control = 3;
+  IdmChannelMetrics bulk = 4;
+
+  // Aggregate IdmClient-level packet kind counters summed across every zone.
+  IdmClientMetrics client = 5;
+
+  // Aggregate queue-depth signals summed across every zone. Provides a
+  // single number for how much traffic is currently in flight in the
+  // daemon's IDM pipeline at every layer.
+  IdmQueueAggregate queues = 6;
+}
+
+// Per-zone snapshot of IDM traffic, ring state, and queue depths.
+message ZoneIdmMetrics {
+  // Zone UUID. May be empty if the daemon hasn't yet associated a UUID with
+  // this domain (early-boot races); use `domid` to correlate in that case.
+  string zone_id = 1;
+  // Friendly name (from the ZoneSpec, if known). May be empty.
+  string zone_name = 2;
+  // Xen domain ID. Always populated.
+  uint32 domid = 3;
+
+  // Counters for the control ring (low-latency RPCs, console I/O,
+  // heartbeats).
+  IdmChannelMetrics control = 4;
+  // Counters for the bulk ring (workload stdout/stderr).
+  IdmChannelMetrics bulk = 5;
+
+  // Per-zone IdmClient pipeline counters (broken down by packet kind, in
+  // both directions). Counts every packet that crossed the per-zone
+  // IdmClient -- a strict superset of what reaches the ring, since some
+  // packets are decoded and routed internally without re-emission.
+  IdmClientMetrics client = 6;
+
+  // Queue depths for each of the in-process channels that sit between the
+  // ring backend and the IdmClient. Where backlog accumulates is exactly
+  // what this is intended to surface.
+  IdmQueueMetrics queues = 7;
+}
+
+// Counters for one ring class (control or bulk) on one zone.
+message IdmChannelMetrics {
+  // Total bytes the ring can hold in each direction. Equal to
+  // `out_pages * 4096` (tx) and `in_pages * 4096` (rx) at construction.
+  // Zero if the backend has not yet completed handshake.
+  uint64 tx_ring_capacity_bytes = 1;
+  uint64 rx_ring_capacity_bytes = 2;
+
+  // Snapshot of how many bytes are currently waiting to be consumed by the
+  // peer in each direction. Sampled at the moment the snapshot is built;
+  // these are gauges, not counters.
+  uint64 tx_ring_used_bytes = 3;
+  uint64 rx_ring_used_bytes = 4;
+
+  // Cumulative packets successfully written to / read from the ring.
+  uint64 tx_packets_total = 5;
+  uint64 rx_packets_total = 6;
+  // Cumulative bytes (on-wire frame size, including the 12-byte framing
+  // header) written to / read from the ring.
+  uint64 tx_bytes_total = 7;
+  uint64 rx_bytes_total = 8;
+
+  // Cumulative count of times `tx_publish` rejected a frame because the
+  // ring was full. Each rejection stashes the frame in `pending` and waits
+  // for the peer to consume; high counts indicate the peer is the
+  // bottleneck.
+  uint64 tx_ring_full_total = 9;
+
+  // Cumulative count of frames dropped because they exceeded `tx_capacity`.
+  // Should be zero in steady state; non-zero means the framing layer
+  // accepted something the ring physically can't carry (a bug).
+  uint64 tx_dropped_oversize_total = 10;
+
+  // Cumulative event-channel notifications sent to / received from the
+  // peer. Each notify costs one ioctl; very high notify rates relative to
+  // packet rate suggest poor notify coalescing.
+  uint64 notifications_sent_total = 11;
+  uint64 notifications_received_total = 12;
+
+  // True if the per-domain ring backend for this channel has completed
+  // handshake. Capacity / used fields are only meaningful when this is
+  // true.
+  bool backend_connected = 13;
+}
+
+// Per-zone IdmClient kind-level counters. Independent of ring class
+// because the IdmClient is single-channel from its own POV (it picks
+// control vs bulk via priority at send time).
+message IdmClientMetrics {
+  // Packets received by the IdmClient from the underlying transport,
+  // broken down by kind.
+  uint64 events_received_total = 1;
+  uint64 requests_received_total = 2;
+  uint64 responses_received_total = 3;
+  uint64 stream_requests_received_total = 4;
+  uint64 stream_request_updates_received_total = 5;
+  uint64 stream_request_closed_received_total = 6;
+  uint64 stream_responses_received_total = 7;
+  uint64 stream_response_closed_received_total = 8;
+
+  // Packets emitted by the IdmClient onto the underlying transport,
+  // broken down by kind.
+  uint64 events_sent_total = 9;
+  uint64 requests_sent_total = 10;
+  uint64 responses_sent_total = 11;
+  uint64 stream_requests_sent_total = 12;
+  uint64 stream_request_updates_sent_total = 13;
+  uint64 stream_request_closed_sent_total = 14;
+  uint64 stream_responses_sent_total = 15;
+  uint64 stream_response_closed_sent_total = 16;
+
+  // Cumulative count of packets that failed to decode (kind, body, or
+  // routing). Non-zero indicates protocol-level corruption.
+  uint64 decode_errors_total = 17;
+  // Cumulative count of packets dropped because the destination channel
+  // did not match this IdmClient's channel.
+  uint64 channel_mismatch_total = 18;
+
+  // Live counts of how many outstanding routing-map entries this client
+  // has. These are gauges, not counters.
+  uint64 pending_requests = 19;
+  uint64 pending_request_streams = 20;
+  uint64 pending_request_update_streams = 21;
+}
+
+// Queue-depth snapshot of every in-process channel inside the daemon's
+// IDM pipeline. Backlog at any of these layers is what we expect to find
+// when the system is overloaded.
+message IdmQueueMetrics {
+  // IdmClient's outbound control queue (drained by the control writer
+  // task into the ring).
+  IdmQueueDepth client_tx_control = 1;
+  // IdmClient's outbound bulk queue (drained by the bulk writer task).
+  IdmQueueDepth client_tx_bulk = 2;
+  // The per-zone `feed` Sender: inbound packets from the ring backend
+  // flow into here for the IdmClient reader to consume.
+  IdmQueueDepth feed = 3;
+  // Control-channel per-backend processor input queue (the channel
+  // through which the daemon hands off encoded packets to the ring
+  // writer task).
+  IdmQueueDepth backend_control_in = 4;
+  // Bulk-channel per-backend processor input queue. Daemon does not
+  // currently emit on bulk; this is normally empty.
+  IdmQueueDepth backend_bulk_in = 5;
+
+  // Pending-outbound buffers held centrally by each XenIdmService while
+  // a backend has not yet completed handshake. Cleared when handshake
+  // completes and the buffer drains into `backend_*_in`.
+  uint64 control_pending_outbound = 6;
+  uint64 bulk_pending_outbound = 7;
+}
+
+// Aggregate queue counters across every zone (sum of `IdmQueueMetrics`
+// across zones, with `len` and `capacity` summed).
+message IdmQueueAggregate {
+  // Total IDM packets currently buffered across every zone's IdmClient
+  // outbound control queues.
+  uint64 client_tx_control_len = 1;
+  uint64 client_tx_control_capacity = 2;
+  uint64 client_tx_bulk_len = 3;
+  uint64 client_tx_bulk_capacity = 4;
+  uint64 feed_len = 5;
+  uint64 feed_capacity = 6;
+  uint64 backend_control_in_len = 7;
+  uint64 backend_control_in_capacity = 8;
+  uint64 backend_bulk_in_len = 9;
+  uint64 backend_bulk_in_capacity = 10;
+  // Per-domain central pending-outbound buffers, summed.
+  uint64 control_pending_outbound = 11;
+  uint64 bulk_pending_outbound = 12;
+  // Central XenIdmService input_receiver depths (one per channel class).
+  IdmQueueDepth control_central_in = 13;
+  IdmQueueDepth bulk_central_in = 14;
+}
+
+// Snapshot of a single tokio mpsc-like queue.
+message IdmQueueDepth {
+  // Configured max capacity (slots).
+  uint64 capacity = 1;
+  // Items currently waiting in the queue. Sampled at snapshot time.
+  uint64 len = 2;
 }
 
 message SnoopIdmRequest {}
