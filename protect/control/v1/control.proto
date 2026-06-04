@@ -340,7 +340,6 @@ message ZoneKernelPidFd {
   uint64 pid = 1;
 }
 
-
 // Represents a captured syscall event from the zone kernel.
 // Roughly maps to the Falco libscap format for generic events:
 // https://falco.org/docs/reference/plugins/plugin-api-reference/#libscap-event-block-specification
