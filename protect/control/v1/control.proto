@@ -57,8 +57,10 @@ service ControlService {
   rpc DialNetworkSocket(stream DialNetworkSocketRequest) returns (stream DialNetworkSocketReply);
 }
 
+// Requests info about the current Edera daemon/host on this machine.
 message GetHostStatusRequest {}
 
+// Identity, addressing, and version/build metadata for the Edera daemon/host.
 message GetHostStatusReply {
   string host_uuid = 1;
   uint32 host_domid = 2;
@@ -73,20 +75,28 @@ message GetHostStatusReply {
   optional string protect_branch = 11;
 }
 
+// Creates a new Edera zone.
+// See https://www.docs.edera.dev/overview for details
 message CreateZoneRequest {
   ZoneSpec spec = 1;
 }
 
+// If `CreateZoneRequest` was successful, returns the UUID of the created
+// zone, which may be retained by the caller as an identifier for future zone-related RPCs.
 message CreateZoneReply {
   string zone_id = 1;
 }
 
+// Destroys an existing Edera zone, terminating any processes running in it and releasing
+// any resources allocated to it.
 message DestroyZoneRequest {
   string zone_id = 1;
 }
 
 message DestroyZoneReply {}
 
+// Resolves zone "friendly name" to a singular zone UUID, if possible. Matching is exact.
+// See also `ResolveZoneIdsRequest` (plural).
 message ResolveZoneIdRequest {
   string name = 1;
 }
@@ -95,6 +105,8 @@ message ResolveZoneIdReply {
   string zone_id = 1;
 }
 
+// In cases where multiple zones share the same "friendly name", return a list of all
+// distinct zone_ids that match that "friendly name". Matching is exact.
 message ResolveZoneIdsRequest {
   string name = 1;
 }
@@ -103,6 +115,7 @@ message ResolveZoneIdsReply {
   repeated string zone_ids = 1;
 }
 
+// Request detailed zone information for a given zone UUID.
 message GetZoneRequest {
   string zone_id = 1;
 }
@@ -111,19 +124,60 @@ message GetZoneReply {
   Zone zone = 1;
 }
 
+// List all zones being currently managed by Edera. This will include zones that are
+// no longer running or in a failed state, as well as running zones.
 message ListZonesRequest {}
 
+// A streamed batch of zones. The full zone list is the concatenation of all streamed message replies.
 message ListZonesReply {
   repeated Zone zones = 1;
 }
 
+// Send this control message to Edera to initiate a stream of ZoneKernelSyscallEvents
+// from the specified zone_id.
+// Sending `ZoneKernelEventStreamUpdate` initiates the stream, if one is not active, or updates
+// parameters of the stream, if one is.
+// Sending `ZoneKernelEventStreamStop` terminates the stream, if one is active.
+//
+// See `MonitorZonekernelEventReply` for the kinds of stream responses to expect.
+message MonitorZoneKernelEventRequest {
+  string zone_id = 1;
+  oneof request {
+    ZoneKernelEventStreamUpdate update = 3;
+    ZoneKernelEventStreamStop stop = 4;
+  }
+}
+
+// On new stream initiate, the first `MonitorZoneKernelEventReply` will be `ZoneKernelThreadSnapshotEvent`.
+// This snapshot contains the current thread and process state of the zone, and is used by the Falco plugin
+// to maintain a per-zone clientside cache of threads and processes to correlate later raw syscall events against.
+//
+// After that first SnapshotEvent comes through, all subsequent events should be of type SyscallEvent.
+// Reinitializing the stream will send a new thread snapshot as head-of-line message, as well.
+//
+// Note that `zone_id` is intentionally duplicated within each
+// reply type, and not simply defined once in the toplevel
+// message. This makes bincoding the internal reply types as bytes easier.
+message MonitorZoneKernelEventReply {
+  oneof reply {
+    ZoneKernelSyscallEvent syscall = 2;
+    ZoneKernelThreadSnapshotEvent threadsnap = 3;
+  }
+}
+
+// This request type may be sent to initiate a stream, if one is not active, or to update
+// the parameters of the current stream, if one is.
+// `enabled_syscalls` is the set of syscalls, by Linux syscall ID number.
+// See https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl
 message ZoneKernelEventStreamUpdate {
   repeated uint32 enabled_syscalls = 2;
 }
 
+// Stops the current syscall event stream subscription.
 message ZoneKernelEventStreamStop {}
 
 // roughly maps to libscap's `scap_threadinfo` type.
+// See https://github.com/falcosecurity/libs/blob/af6e6f276bf3a847159b3cdfdbcc9efda9a620b9/userspace/libscap/scap.h#L244
 message ZoneKernelThreadInfo {
   optional uint64 tid = 1;
   optional uint64 pid = 2; //threads ALWAYS have a pid(tgid) IRL - this is optional as shorthand for "fully vs partially constructed".
@@ -172,6 +226,7 @@ message ZoneKernelThreadInfo {
   bool reaper = 45;
 }
 
+// roughly maps to libscap's `scap_fdinfo` type.
 message ZoneKernelFdInfo {
   optional uint64 fd = 1; //unset fd id == invalid fd info
   uint64 inode = 2;
@@ -208,6 +263,8 @@ enum ZoneKernelFdType {
   ZONE_KERNEL_FD_TYPE_PIDFD = 21;
 }
 
+// Type-specific info for a file descriptor. The variant set here corresponds to
+// the `ZoneKernelFdType` of the enclosing `ZoneKernelFdInfo`.
 message ZoneKernelFdInfoData {
   oneof info_type {
     ZoneKernelIpv4SocketInfo ipv4_socket = 1;
@@ -230,6 +287,7 @@ enum ZoneKernelIPProtocol {
   ZONE_KERNEL_IP_PROTOCOL_RAW = 5;
 }
 
+// Endpoint info for a connected IPv4 socket.
 message ZoneKernelIpv4SocketInfo {
   string source_ip = 1; // IPv4 address as string
   string dest_ip = 2; // IPv4 address as string
@@ -238,6 +296,7 @@ message ZoneKernelIpv4SocketInfo {
   ZoneKernelIPProtocol protocol = 5;
 }
 
+// Endpoint info for a connected IPv6 socket.
 message ZoneKernelIpv6SocketInfo {
   string source_ip = 1; // IPv6 address as string
   string dest_ip = 2; // IPv6 address as string
@@ -246,24 +305,29 @@ message ZoneKernelIpv6SocketInfo {
   ZoneKernelIPProtocol protocol = 5;
 }
 
+// Endpoint info for a listening IPv4 server socket.
 message ZoneKernelIpv4ServerSocketInfo {
   string local_ip = 1; // IPv4 address as string
   uint32 local_port = 2;
   ZoneKernelIPProtocol protocol = 3;
 }
 
+// Endpoint info for a listening IPv6 server socket.
 message ZoneKernelIpv6ServerSocketInfo {
   string local_ip = 1; // IPv6 address as string
   uint32 local_port = 2;
   ZoneKernelIPProtocol protocol = 3;
 }
 
+// Info for a unix domain socket. `source` and `destination` are opaque kernel socket
+// identifiers, per libscap.
 message ZoneKernelUnixSocketInfo {
   uint64 source = 1;
   uint64 destination = 2;
   string name = 3;
 }
 
+// Info for a regular open file.
 message ZoneKernelRegularFileInfo {
   uint32 open_flags = 1;
   string name = 2;
@@ -271,10 +335,13 @@ message ZoneKernelRegularFileInfo {
   uint32 device = 4;
 }
 
+// Info for a pidfd: the PID of the process the fd refers to.
 message ZoneKernelPidFd {
   uint64 pid = 1;
 }
 
+
+// Represents a captured syscall event from the zone kernel.
 // Roughly maps to the Falco libscap format for generic events:
 // https://falco.org/docs/reference/plugins/plugin-api-reference/#libscap-event-block-specification
 message ZoneKernelSyscallEvent {
@@ -290,29 +357,15 @@ message ZoneKernelSyscallEvent {
   repeated ZoneKernelEventParam event_params = 7;
 }
 
+// Sent as an ACK response to a `MonitorZoneKernelEventRequest` of type `ZoneKernelEventStreamUpdate`.
+// Contains a complete snapshot of zone threads, which is used by the Falco plugin to maintain a per-zone clientside
+// cache of threads and processes to correlate the subsequent raw syscall event stream against.
+// This is useful because e.g. if you get a `fork` syscall event from an existing thread, you can correlate the
+// parent TID against the data in this snapshot to hydrate info about the parent thread, if needed or desired.
 message ZoneKernelThreadSnapshotEvent {
   string zone_id = 2;
   map<uint64, ZoneKernelThreadInfo> thread_info = 1;
   uint64 zone_boot_epoch = 3; // some thread info timestamp fields are relative to this
-}
-
-message MonitorZoneKernelEventRequest {
-  string zone_id = 1;
-  oneof request {
-    ZoneKernelEventStreamUpdate update = 3;
-    ZoneKernelEventStreamStop stop = 4;
-  }
-}
-
-// Note that `zone_id` is duplicated within each
-// reply type, and not simply defined once in the toplevel
-// message. This is intentional, as it makes bincoding the
-// internal reply types as bytes easier.
-message MonitorZoneKernelEventReply {
-  oneof reply {
-    ZoneKernelSyscallEvent syscall = 2;
-    ZoneKernelThreadSnapshotEvent threadsnap = 3;
-  }
 }
 
 // in libscap, events are packed on the wire accordingly:
@@ -323,6 +376,7 @@ message MonitorZoneKernelEventReply {
 // This represents the non-header parts of the event.
 // The number of paramters, as well as whether the param lengths are represented as 2 or 4 byte numbers,
 // is defined by the header in libscap, but for convenience those are colocated in this message here.
+// See https://falco.org/docs/reference/plugins/plugin-api-reference/#libscap-event-block-specification
 message ZoneKernelEventParam {
   string name = 1;
   uint32 param_type = 2;
@@ -331,6 +385,8 @@ message ZoneKernelEventParam {
   string param_type_pretty = 5;
 }
 
+// Client stream message for `ExecuteZoneCommand`. The first message sent must be an
+// `ExecuteZoneCommandStart`; subsequent messages carry stdin data or terminal resizes.
 message ExecuteZoneCommandRequest {
   oneof request {
     ExecuteZoneCommandStart start = 1;
@@ -339,30 +395,38 @@ message ExecuteZoneCommandRequest {
   }
 }
 
+// Starts a process in the specified zone. If `workload_id` is set, the process is spawned
+// inside that workload's container, otherwise it runs in the zone context itself.
 message ExecuteZoneCommandStart {
   string zone_id = 1;
   string workload_id = 2;
   ProcessSpec process = 3;
 }
 
+// A chunk of stdin for the running process. Set `closed` to signal EOF on stdin.
 message ExecuteZoneCommandStdin {
   bytes stdin = 1;
   bool closed = 2;
 }
 
+// Resizes the terminal of the running process, if it was started with a tty.
 message ExecuteZoneCommandTerminalResize {
   TerminalSize size = 1;
 }
 
+// A chunk of stdout/stderr output from the running process.
 message ExecuteZoneCommandOutput {
   bytes stdout = 1;
   bytes stderr = 2;
 }
 
+// Indicates the process exited with `exit_code`. This is the final reply on the stream.
 message ExecuteZoneCommandExited {
   int32 exit_code = 1;
 }
 
+// Server stream message for `ExecuteZoneCommand`: output chunks as they arrive,
+// terminated by an `ExecuteZoneCommandExited` when the process exits.
 message ExecuteZoneCommandReply {
   oneof reply {
     ExecuteZoneCommandOutput output = 1;
@@ -370,16 +434,23 @@ message ExecuteZoneCommandReply {
   }
 }
 
+// Client stream message for `AttachZoneConsole`. `data` is written to the zone console.
+// Set `replay_history` on the first message to receive buffered console history before
+// live output.
 message ZoneConsoleRequest {
   string zone_id = 1;
   bytes data = 2;
   bool replay_history = 3;
 }
 
+// A chunk of zone console output.
 message ZoneConsoleReply {
   bytes data = 1;
 }
 
+// Client stream message for `AttachWorkloadConsole`. Attaches to the stdio of the
+// workload's main process: `stdin` bytes are forwarded to the process, `stdin_closed`
+// signals stdin EOF, and `terminal_resize` resizes the process terminal, if it has one.
 message WorkloadConsoleRequest {
   string workload_id = 1;
   bytes stdin = 2;
@@ -387,13 +458,16 @@ message WorkloadConsoleRequest {
   TerminalSize terminal_resize = 4;
 }
 
+// A chunk of stdout/stderr output from the workload's main process.
 message WorkloadConsoleReply {
   bytes stdout = 1;
   bytes stderr = 2;
 }
 
+// Subscribes to a stream of state changes for all zones and workloads on this host.
 message WatchEventsRequest {}
 
+// A single zone or workload change event.
 message WatchEventsReply {
   oneof event {
     ZoneChangedEvent zone_changed = 1;
@@ -401,35 +475,52 @@ message WatchEventsReply {
   }
 }
 
+// Carries the full current state of a zone whose state has changed.
 message ZoneChangedEvent {
   Zone zone = 1;
 }
 
+// Carries the full current state of a workload whose state has changed.
 message WorkloadChangedEvent {
   Workload workload = 1;
 }
 
+// Reads the most recently collected metrics (memory, CPU, etc.) for the given zone.
+// Metrics are served from a daemon-managed cache.
 message ReadZoneMetricsRequest {
   string zone_id = 1;
 }
 
+// The root of the zone metrics tree. `root` is unset if no metrics are available for the
+// zone (zone metrics disabled, metrics stale, etc).
 message ReadZoneMetricsReply {
   MetricNode root = 1;
 }
 
+// Subscribes to a snoop stream of all IDM traffic passing
+// between the daemon and zones on this host. Intended for debugging and analysis.
 message SnoopIdmRequest {}
 
+// A batch of snooped IDM packets. If the subscriber falls behind the snoop buffer,
+// `skipped` reports how many packets were dropped to catch up.
 message SnoopIdmReply {
   repeated SnoopIdmPacket packets = 1;
   uint64 skipped = 2;
 }
 
+// A single IDM packet. `from` and `to` are zone UUIDs (the host UUID stands in for the
+// daemon side), and `packet` is the protobuf-encoded IDM message.
 message SnoopIdmPacket {
   string from = 1;
   string to = 2;
   bytes packet = 3;
 }
 
+// Pulls an OCI image into the local image cache, packing it into the requested `format`.
+// `overwrite_cache` forces a fresh pull and repack even if the image is already cached.
+// `update` re-resolves the image reference against the registry (picking up new content
+// for moving tags) instead of resolving from the local cache.
+// Set `want_metadata` to receive the OCI manifest/config in the final reply.
 message PullImageRequest {
   string image = 1;
   OciImageFormat format = 2;
@@ -439,12 +530,18 @@ message PullImageRequest {
   OciRegistryAuthentication auth = 6;
 }
 
+// Streamed reply for `PullImageRequest`. Intermediate replies carry `progress` updates.
+// The final reply carries the packed image `spec`, plus `metadata` if requested.
 message PullImageReply {
   OciImageProgress progress = 1;
   OciImageSpec spec = 2;
   OciImageMetadata metadata = 3;
 }
 
+// Client stream message for `ImportImage`: uploads an image archive directly into the
+// local image cache, as a sequence of `chunk`s with `last_chunk` set on the final one.
+// The first message must carry `image`, `digest` and `format`, identifying the image
+// and selecting the packed format to unpack it into.
 message ImportImageRequest {
   string digest = 1;
   string image = 2;
@@ -455,6 +552,11 @@ message ImportImageRequest {
   bool want_metadata = 7;
 }
 
+// Streamed reply for `ImportImage`. `accepted` indicates whether the daemon will consume
+// the uploaded archive. It is `false` if a task for the same image is already active, in
+// which case the upload is ignored and this stream observes the existing task's progress
+// instead. As with `PullImageReply`, `progress` updates are followed by a final reply
+// carrying `spec`, plus `metadata` if requested.
 message ImportImageReply {
   bool accepted = 1;
   OciImageProgress progress = 2;
@@ -462,33 +564,45 @@ message ImportImageReply {
   OciImageMetadata metadata = 4;
 }
 
+// Removes the image identified by `digest` and `format` from the local image cache.
 message RemoveImageRequest {
   string digest = 1;
   OciImageFormat format = 2;
 }
 
+// `removed` indicates whether the image existed and was removed.
 message RemoveImageReply {
   bool removed = 1;
 }
 
+// Lists all images currently present in the local image cache.
 message ListImagesRequest {}
 
+// A streamed batch of cached images.
 message ListImagesReply {
   repeated OciImageInfo images = 1;
 }
 
+// Lists host devices available for passthrough to zones, including whether each device
+// is currently claimed, and by which zone.
 message ListDevicesRequest {}
 
+// The set of known host devices.
 message ListDevicesReply {
   repeated DeviceInfo devices = 1;
 }
 
+// Requests the host CPU topology.
 message GetHostCpuTopologyRequest {}
 
+// One entry per logical host CPU, describing its core/socket/node/thread placement
+// and CPU class.
 message GetHostCpuTopologyReply {
   repeated HostCpuTopologyInfo cpus = 1;
 }
 
+// Sets the host power management policy. `scheduler` is a CPU frequency governor name,
+// applied to all host CPUs. `smt_awareness` toggles SMT-aware power management.
 message SetHostPowerManagementPolicyRequest {
   string scheduler = 1;
   bool smt_awareness = 2;
@@ -496,6 +610,8 @@ message SetHostPowerManagementPolicyRequest {
 
 message SetHostPowerManagementPolicyReply {}
 
+// Live-updates the CPU and memory resources of a running zone, within the resource
+// bounds the zone was created with.
 message UpdateZoneResourcesRequest {
   string zone_id = 1;
   ZoneResourcesSpec resources = 2;
@@ -503,50 +619,68 @@ message UpdateZoneResourcesRequest {
 
 message UpdateZoneResourcesReply {}
 
+// Reads the accumulated dmesg-style hypervisor console log.
 message ReadHypervisorConsoleRequest {}
 
+// The hypervisor console log contents.
 message ReadHypervisorConsoleReply {
   string data = 1;
 }
 
+// Lists all current network reservations. See `CreateNetworkReservationRequest`.
 message ListNetworkReservationsRequest {}
 
+// A streamed batch of network reservations.
 message ListNetworkReservationsReply {
   repeated NetworkReservation reservations = 1;
 }
 
+// Allocates a new network reservation: a MAC address and IPv4/IPv6 assignment reserved
+// ahead of zone creation. A zone can later be created against the reservation via
+// `ZoneNetworkOptionsSpec.assume_network_reservation`.
 message CreateNetworkReservationRequest {}
 
+// The newly allocated reservation.
 message CreateNetworkReservationReply {
   NetworkReservation reservation = 1;
 }
 
+// Releases the network reservation with the given UUID.
 message DestroyNetworkReservationRequest {
   string reservation_id = 1;
 }
 
 message DestroyNetworkReservationReply {}
 
+// Requests hypervisor debug state. Intended for debugging.
 message HypervisorDebugInfoRequest {}
 
+// Hypervisor debug state, as free-form JSON whose shape may change between versions.
 message HypervisorDebugInfoReply {
   string json = 1;
 }
 
+// Creates a new workload in an existing zone (specified by `WorkloadSpec.zone_id`).
+// Creating a workload does not start it, see `StartWorkloadRequest`.
 message CreateWorkloadRequest {
   WorkloadSpec spec = 1;
 }
 
+// If `CreateWorkloadRequest` was successful, returns the UUID of the created workload,
+// which may be retained by the caller as an identifier for future workload-related RPCs.
 message CreateWorkloadReply {
   string workload_id = 1;
 }
 
+// Starts a previously created workload.
 message StartWorkloadRequest {
   string workload_id = 1;
 }
 
 message StartWorkloadReply {}
 
+// Stops a running workload. The workload process is asked to terminate gracefully, and
+// is forcibly killed if it has not exited after `timeout` seconds.
 message StopWorkloadRequest {
   string workload_id = 1;
   uint64 timeout = 2;
@@ -554,42 +688,57 @@ message StopWorkloadRequest {
 
 message StopWorkloadReply {}
 
+// Destroys an existing workload, stopping it if necessary and releasing any resources
+// allocated to it.
 message DestroyWorkloadRequest {
   string workload_id = 1;
 }
 
 message DestroyWorkloadReply {}
 
+// Resolves workload "friendly name" to a singular workload UUID, if possible. Matching is exact.
+// See also `ResolveWorkloadIdsRequest` (plural).
 message ResolveWorkloadIdRequest {
   string name = 1;
 }
 
+// The UUID of the workload matching the requested name.
 message ResolveWorkloadIdReply {
   string workload_id = 1;
 }
 
+// In cases where multiple workloads share the same "friendly name", return a list of all
+// distinct workload_ids that match that "friendly name". Matching is exact.
 message ResolveWorkloadIdsRequest {
   string name = 1;
 }
 
+// The UUIDs of all workloads matching the requested name.
 message ResolveWorkloadIdsReply {
   repeated string workload_ids = 1;
 }
 
+// List all workloads currently managed by Edera, across all zones. As with
+// `ListZonesRequest`, this includes workloads that are no longer running or in a
+// failed state, as well as running workloads.
 message ListWorkloadsRequest {}
 
+// A streamed batch of workloads. The full workload list is the concatenation of all streamed replies.
 message ListWorkloadsReply {
   repeated Workload workloads = 1;
 }
 
+// Request detailed workload information for a given workload UUID.
 message GetWorkloadRequest {
   string workload_id = 1;
 }
 
+// Detailed workload information for the requested workload.
 message GetWorkloadReply {
   Workload workload = 1;
 }
 
+// Applies a network configuration (interfaces, routes, neighbor entries) to an existing zone.
 message ConfigureZoneNetworkRequest {
   string zone_id = 1;
   ZoneNetworkConfig config = 2;
@@ -597,6 +746,8 @@ message ConfigureZoneNetworkRequest {
 
 message ConfigureZoneNetworkReply {}
 
+// Client stream message for `DialNetworkSocket`. The first message must be a
+// `DialNetworkSocketStart`. Subsequent messages carry data to write to the connection.
 message DialNetworkSocketRequest {
   oneof request {
     DialNetworkSocketStart start = 1;
@@ -604,16 +755,20 @@ message DialNetworkSocketRequest {
   }
 }
 
+// Dials a TCP connection to `address:port` from inside the specified zone's network.
+// Once established, the stream acts as a bidirectional byte proxy for the connection.
 message DialNetworkSocketStart {
   string zone_id = 1;
   string address = 2;
   uint32 port = 3;
 }
 
+// A chunk of connection payload bytes.
 message DialNetworkSocketData {
   bytes content = 1;
 }
 
+// A chunk of bytes received from the zone-side connection.
 message DialNetworkSocketReply {
   DialNetworkSocketData data = 1;
 }

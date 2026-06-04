@@ -11,11 +11,12 @@ message Zone {
   ZoneStatus status = 3;
 }
 
+// Represents a Zone.
+// - If `kernel` not specified, defaults to the daemon default kernel.
+// - If `initrd` not specified, defaults to the daemon default initrd.
 message ZoneSpec {
   string name = 1;
-  // If not specified, defaults to the daemon default kernel.
   OciImageSpec kernel = 2;
-  // If not specified, defaults to the daemon default initrd.
   OciImageSpec initrd = 3;
   KernelOptionsSpec kernel_options = 4;
   ZoneResourcesSpec initial_resources = 5;
@@ -82,15 +83,13 @@ message ZoneNetworkOptionsDnsSpec {
   repeated string options = 5;
 }
 
+// Represents configurable zone options related to hypervisor virtualization.
+// - `numa_nodes`: Requested vNUMA node count.
+//   - 0 (default) = auto: placement is driven by vCPU vs. per-node pCPU coverage, matching legacy behavior.
+//   - `>0` = exact: the daemon will hard-fail if the request cannot be satisfied with exactly this many vNUMA nodes.
 message ZoneVirtualizationOptionsSpec {
   ZoneVirtualizationBackend backend = 1;
-  // Requested vNUMA node count.
-  // 0 (default) = auto: placement is driven by vCPU vs. per-node pCPU coverage,
-  // matching legacy behavior. >0 = exact: the daemon will hard-fail if the
-  // request cannot be satisfied with exactly this many vNUMA nodes.
   uint32 numa_nodes = 2;
-  // Strategy used when expanding the selected node set beyond the seed node.
-  // UNSPECIFIED is treated as COMPACT.
   NumaStrategy numa_strategy = 3;
 }
 
@@ -101,16 +100,14 @@ enum ZoneVirtualizationBackend {
   ZONE_VIRTUALIZATION_BACKEND_AUTOMATIC = 3;
 }
 
+// Strategy used when expanding the selected node set beyond the seed node.
+// - UNSPECIFIED is treated as COMPACT.
+// - COMPACT: Expand to the nearest unselected NUMA node by SLIT distance from the already-selected set, tie-breaking by most free memory.
+// - SCATTER: Expand to the most distant unselected NUMA node by SLIT distance from the already-selected set, tie-breaking by most free memory.
+//   Note: SLIT distance does not guarantee separation across sockets, IMCs, or LLCs; the benefit depends on the host's physical topology.
 enum NumaStrategy {
-  // Treated as COMPACT for placement purposes.
   NUMA_STRATEGY_UNSPECIFIED = 0;
-  // Expand to the nearest unselected NUMA node by SLIT distance from the
-  // already-selected set, tie-breaking by most free memory.
   NUMA_STRATEGY_COMPACT = 1;
-  // Expand to the most distant unselected NUMA node by SLIT distance from the
-  // already-selected set, tie-breaking by most free memory. Note: SLIT distance
-  // does not guarantee separation across sockets, IMCs, or LLCs; the benefit
-  // depends on the host's physical topology.
   NUMA_STRATEGY_SCATTER = 2;
 }
 
@@ -457,11 +454,11 @@ message HostCpuTopologyInfo {
   HostCpuTopologyClass class = 5;
 }
 
+// Tar and directory formats are not launchable, and are intended for internal images.
 enum OciImageFormat {
   OCI_IMAGE_FORMAT_UNKNOWN = 0;
   OCI_IMAGE_FORMAT_SQUASHFS = 1;
   OCI_IMAGE_FORMAT_EROFS = 2;
-  // Tar and directory formats are not launchable, and are intended for internal images.
   OCI_IMAGE_FORMAT_TAR = 3;
   OCI_IMAGE_FORMAT_DIRECTORY = 4;
 }
@@ -575,10 +572,10 @@ message ZoneMountStatus {
   string tag = 3;
 }
 
+// If `user` is empty, no username will be provided.
+// If `password` is empty, no password will be provided.
 message OciRegistryUsernamePassword {
-  // username to provide, empty means no username.
   string username = 1;
-  // password to provide, empty means no password.
   string password = 2;
 }
 
