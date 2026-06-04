@@ -18,3 +18,11 @@ deps:
 ```
 
 The folder hierarchy, file naming and package naming schemes follow the [Buf style guide](https://buf.build/docs/best-practices/style-guide/).
+
+## Consuming the API
+
+The Edera control API a Protobuf API exposed locally on each Edera node via a Unix socket.
+
+The Unix socket typically lives at `/var/lib/edera/protect/daemon.socket`.
+
+For a complete code example of a standalone Edera control API client, including connecting to the socket, issuing command RPCs, and subscribing to event streams, [see this Rust crate](https://github.com/edera-dev/falco_plugin/tree/0b14483783d38ddeceb514d63ebf5b0555e8a8e1/src/source_plugin/client).
