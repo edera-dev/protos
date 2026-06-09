@@ -582,6 +582,7 @@ message WorkloadStatus {
   WorkloadMountStatus mount_status = 5;
   google.protobuf.Timestamp created_at = 6;
   WorkloadPciDeviceStatus pci_device_status = 7;
+  WorkloadDeviceStatus device_status = 8;
 }
 
 message WorkloadBlockDeviceInfo {
@@ -590,6 +591,10 @@ message WorkloadBlockDeviceInfo {
   reserved 3;
   string device = 4;
   bool loop_dev = 5;
+}
+
+message WorkloadFsDeviceInfo {
+  uint64 device_id = 1;
 }
 
 message WorkloadPciDeviceInfo {
@@ -602,6 +607,18 @@ message WorkloadBlockDeviceStatus {
 
 message WorkloadPciDeviceStatus {
   repeated WorkloadPciDeviceInfo devices = 1;
+}
+
+message WorkloadDeviceInfo {
+  oneof info {
+    WorkloadBlockDeviceInfo block = 1;
+    WorkloadFsDeviceInfo fs = 2;
+    WorkloadPciDeviceInfo pci = 3;
+  }
+}
+
+message WorkloadDeviceStatus {
+  repeated WorkloadDeviceInfo devices = 1;
 }
 
 message WorkloadMountInfo {
