@@ -157,6 +157,7 @@ message ProcessSpec {
 message MountSpec {
   string host_path = 1;
   string target_path = 2;
+  bool read_only = 3;
 }
 
 message EnvironmentVariableSpec {
@@ -418,6 +419,7 @@ message WorkloadMountInfo {
   string tag = 2;
   string host_path = 3;
   string target_path = 5;
+  bool read_only = 6;
   reserved 1, 4;
 }
 
