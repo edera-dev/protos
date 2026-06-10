@@ -184,7 +184,7 @@ message WorkloadPciDeviceSpec {
 }
 
 message WorkloadFsDeviceSpec {
-  bool volume_per_workload = 1;
+  bool volume_per_workload_in_spec = 1;
 }
 
 message BlockDeviceMountOptions {
