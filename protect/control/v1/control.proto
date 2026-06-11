@@ -22,6 +22,8 @@ service ControlService {
 
   rpc CreateZone(CreateZoneRequest) returns (CreateZoneReply);
   rpc DestroyZone(DestroyZoneRequest) returns (DestroyZoneReply);
+  rpc SuspendZone(SuspendZoneRequest) returns (SuspendZoneReply);
+  rpc ResumeZone(ResumeZoneRequest) returns (ResumeZoneReply);
 
   rpc ResolveZoneId(ResolveZoneIdRequest) returns (ResolveZoneIdReply);
   rpc ResolveZoneIds(ResolveZoneIdsRequest) returns (ResolveZoneIdsReply);
@@ -94,6 +96,22 @@ message DestroyZoneRequest {
 }
 
 message DestroyZoneReply {}
+
+// Cooperatively suspends a running Edera zone. The guest is asked to quiesce its
+// devices and self-suspend; the zone stays resident in memory and can later be
+// resumed with `ResumeZoneRequest`.
+message SuspendZoneRequest {
+  string zone_id = 1;
+}
+
+message SuspendZoneReply {}
+
+// Resumes a previously suspended Edera zone, returning it to the running state.
+message ResumeZoneRequest {
+  string zone_id = 1;
+}
+
+message ResumeZoneReply {}
 
 // Resolves zone "friendly name" to a singular zone UUID, if possible. Matching is exact.
 // See also `ResolveZoneIdsRequest` (plural).
