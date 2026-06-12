@@ -24,6 +24,7 @@ service ControlService {
   rpc DestroyZone(DestroyZoneRequest) returns (DestroyZoneReply);
   rpc SuspendZone(SuspendZoneRequest) returns (SuspendZoneReply);
   rpc ResumeZone(ResumeZoneRequest) returns (ResumeZoneReply);
+  rpc ForkZone(ForkZoneRequest) returns (ForkZoneReply);
 
   rpc ResolveZoneId(ResolveZoneIdRequest) returns (ResolveZoneIdReply);
   rpc ResolveZoneIds(ResolveZoneIdsRequest) returns (ResolveZoneIdsReply);
@@ -112,6 +113,21 @@ message ResumeZoneRequest {
 }
 
 message ResumeZoneReply {}
+
+// Forks a running Edera zone into a new memory-shared child zone (Xen VM-fork).
+// The parent is cooperatively suspended for the fork and then resumed; the child
+// is a copy-on-write clone that boots with its own identity (UUID, network).
+message ForkZoneRequest {
+  // The zone to fork from.
+  string zone_id = 1;
+  // Optional name for the forked child zone.
+  string name = 2;
+}
+
+// Returns the UUID of the newly forked child zone.
+message ForkZoneReply {
+  string zone_id = 1;
+}
 
 // Resolves zone "friendly name" to a singular zone UUID, if possible. Matching is exact.
 // See also `ResolveZoneIdsRequest` (plural).

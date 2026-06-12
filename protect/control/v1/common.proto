@@ -26,6 +26,9 @@ message ZoneSpec {
   ZoneVirtualizationOptionsSpec virtualization_options = 9;
   ZoneScratchDiskSpec scratch_disk = 10;
   repeated OciImageSpec addons = 11;
+  // When set, this zone is a fork of the named parent zone; the reconciler
+  // forks the child from the parent rather than building it from scratch.
+  string fork_parent_zone_id = 12;
 }
 
 enum ZoneResourceAdjustmentPolicy {
@@ -215,6 +218,7 @@ enum ZoneState {
   ZONE_STATE_SUSPENDING = 8;
   ZONE_STATE_SUSPENDED = 9;
   ZONE_STATE_RESUMING = 10;
+  ZONE_STATE_FORKING = 11;
 }
 
 enum ZoneNetworkIpVersion {
