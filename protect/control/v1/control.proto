@@ -7,6 +7,8 @@ import "protect/control/v1/common.proto";
 service ControlService {
   rpc GetHostStatus(GetHostStatusRequest) returns (GetHostStatusReply);
   rpc SnoopIdm(SnoopIdmRequest) returns (stream SnoopIdmReply);
+  // Snoops on the Control API, returning a stream of live Control API packets.
+  // Other control API snoops will be skipped from the responses.
   rpc SnoopControl(SnoopControlRequest) returns (stream SnoopControlReply);
   rpc GetHostCpuTopology(GetHostCpuTopologyRequest) returns (GetHostCpuTopologyReply);
 
@@ -550,13 +552,18 @@ message SnoopIdmPacket {
   bytes packet = 3;
 }
 
+// Request to snoop the Control API traffic for this host.
 message SnoopControlRequest {}
 
+// Reply for the SnoopControl RPC, contains a batch of packets from the Control API.
 message SnoopControlReply {
+  // Snooped packets that were received from the Control API.
   repeated SnoopControlPacket packets = 1;
+  // Number of packets that were skipped due to buffer constraints.
   uint64 skipped = 2;
 }
 
+/// Represents the form of a packet in the Control API.
 enum SnoopControlPacketForm {
   SNOOP_CONTROL_PACKET_FORM_UNKNOWN = 0;
   SNOOP_CONTROL_PACKET_FORM_REQUEST = 1;
@@ -564,13 +571,21 @@ enum SnoopControlPacketForm {
   SNOOP_CONTROL_PACKET_FORM_RESPONSE = 3;
 }
 
+/// Represents a packet of data in/out of the Control API.
 message SnoopControlPacket {
+  // Unique identifier for the packet.
   uint64 id = 1;
+  // Origin of the RPC.
   ResourceOrigin origin = 2;
+  // Service name of the RPC.
   string service = 3;
+  // Method name of the RPC.
   string method = 4;
+  // Form of the packet.
   SnoopControlPacketForm form = 5;
+  // Payload of the packet.
   string payload = 6;
+  // Whether the stream is closed.
   bool closed = 7;
 }
 

@@ -36,15 +36,21 @@ message ZoneSpec {
   // When set, this zone is a fork of the named parent zone; the reconciler
   // forks the child from the parent rather than building it from scratch.
   string fork_parent_zone_id = 12;
+  // Configures Control API access for the zone.
   ZoneControlApiSpec control_api = 13;
 }
 
+// Access control specification on the Control API for a zone.
 enum ZoneControlApiAccess {
+  // Deny access to the Control API for this zone.
   ZONE_CONTROL_API_ACCESS_DENY = 0;
+  // Allow access to the Control API for this zone.
   ZONE_CONTROL_API_ACCESS_ALLOW = 1;
 }
 
+// Configures the Control API for a zone.
 message ZoneControlApiSpec {
+  // Controls access to the Control API.
   ZoneControlApiAccess access = 1;
 }
 
