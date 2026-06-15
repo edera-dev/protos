@@ -5,10 +5,17 @@ package protect.control.v1;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
+message ResourceOrigin {
+  string zone_id = 1;
+  string workload_id = 2;
+  string user_agent = 3;
+}
+
 message Zone {
   string id = 1;
   ZoneSpec spec = 2;
   ZoneStatus status = 3;
+  ResourceOrigin origin = 4;
 }
 
 // Represents a Zone.
@@ -29,6 +36,16 @@ message ZoneSpec {
   // When set, this zone is a fork of the named parent zone; the reconciler
   // forks the child from the parent rather than building it from scratch.
   string fork_parent_zone_id = 12;
+  ZoneControlApiSpec control_api = 13;
+}
+
+enum ZoneControlApiAccess {
+  ZONE_CONTROL_API_ACCESS_DENY = 0;
+  ZONE_CONTROL_API_ACCESS_ALLOW = 1;
+}
+
+message ZoneControlApiSpec {
+  ZoneControlApiAccess access = 1;
 }
 
 enum ZoneResourceAdjustmentPolicy {
@@ -447,6 +464,7 @@ message Workload {
   string id = 1;
   WorkloadSpec spec = 2;
   WorkloadStatus status = 3;
+  ResourceOrigin origin = 4;
 }
 
 enum HostCpuTopologyClass {
