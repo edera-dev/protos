@@ -225,7 +225,7 @@ message ZoneKernelEventStreamUpdate {
 message ZoneKernelEventStreamStop {}
 
 message SpireMetadataRequest {
-  string zoneID = 1;
+  string zone_id = 1;
 }
 
 message SpireMetadataReply {
