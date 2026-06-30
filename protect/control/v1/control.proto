@@ -230,6 +230,10 @@ message SpireMetadataRequest {
 
 message SpireMetadataReply {
   string identifier = 1;
+  // The zone the identifier was resolved for. When the request omits zoneID,
+  // the daemon fills it from the authenticated in-zone control channel and
+  // echoes it here so the caller learns its own zone without a side channel.
+  string zone_id = 2;
 }
 
 // roughly maps to libscap's `scap_threadinfo` type.
