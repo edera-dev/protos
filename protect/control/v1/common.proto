@@ -380,6 +380,54 @@ message WorkloadSpec {
   repeated WorkloadBlockDeviceSpec block_devices = 11;
   optional int32 oom_score_adj = 12;
   repeated WorkloadPciDeviceSpec pci_devices = 13;
+  ObjectCapabilitySpec object_capabilities = 14;
+}
+
+// Object-capability grants for a workload. Privilege is reached by connecting
+// to an endpoint, not by holding a credential. A workload may publish
+// capabilities it holds (each backed by a supervised capsudod) and receive
+// capabilities published elsewhere (each projected as a /run/ocap/<name>
+// socket, bridged to the provider over IDM).
+message ObjectCapabilitySpec {
+  // Capabilities this workload offers to others.
+  repeated ObjectCapabilityPublishSpec publishes = 1;
+  // Capabilities this workload consumes, by name (e.g.
+  // "dev.edera/whatever/deploy"). A receive that cannot be resolved is fatal:
+  // the workload will not start, because the capability is a prerequisite.
+  repeated string receives = 2;
+}
+
+// A single capability a workload publishes. Mirrors capsudod's attenuation:
+// a fixed command/environment and whether the client may influence them.
+message ObjectCapabilityPublishSpec {
+  // Capability identity, e.g. "dev.edera/whatever/deploy". Determines the
+  // /run/ocap/<name> socket path projected into receiving workloads.
+  string name = 1;
+  // Fixed program and arguments. Empty means the client supplies argv.
+  repeated string command = 2;
+  // Fixed environment entries injected into every invocation.
+  repeated EnvironmentVariableSpec environment = 3;
+  // capsudod -f: ignore client-supplied argv and run `command` verbatim.
+  bool no_client_argv = 4;
+  // capsudod -E: ignore client-supplied environment.
+  bool no_client_env = 5;
+  // Run the delegated child as this uid/gid. Unset runs as the capsudod uid.
+  optional uint32 run_as_uid = 6;
+  optional uint32 run_as_gid = 7;
+  // Working directory for the delegated child. Empty leaves it unchanged.
+  string working_dir = 8;
+}
+
+// Status of one published object capability, for discovery/observability.
+message ObjectCapabilityInfo {
+  // Capability identity, e.g. "dev.edera/whatever/deploy".
+  string name = 1;
+  // The zone whose agent supervises the backing capsudod.
+  string provider_zone_id = 2;
+  // The publishing workload within that zone.
+  string provider_workload_id = 3;
+  // Whether the backing capsudod is up and accepting connections.
+  bool ready = 4;
 }
 
 message CgroupLimit {

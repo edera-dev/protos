@@ -61,6 +61,10 @@ service ControlService {
   rpc SetHostPowerManagementPolicy(SetHostPowerManagementPolicyRequest) returns (SetHostPowerManagementPolicyReply);
 
   rpc DialNetworkSocket(stream DialNetworkSocketRequest) returns (stream DialNetworkSocketReply);
+
+  rpc DialObjectCapability(stream DialObjectCapabilityRequest) returns (stream DialObjectCapabilityReply);
+
+  rpc ListObjectCapabilities(ListObjectCapabilitiesRequest) returns (stream ListObjectCapabilitiesReply);
 }
 
 // Requests info about the current Edera daemon/host on this machine.
@@ -844,4 +848,40 @@ message DialNetworkSocketData {
 // A chunk of bytes received from the zone-side connection.
 message DialNetworkSocketReply {
   DialNetworkSocketData data = 1;
+}
+
+message DialObjectCapabilityRequest {
+  oneof request {
+    DialObjectCapabilityStart start = 1;
+    DialObjectCapabilityData data = 2;
+  }
+}
+
+// Dials the object capability published under `name`, which the daemon resolves
+// to its provider zone. Once established, the stream is a bidirectional byte
+// proxy carrying one capsudo session (descriptor passing is simulated over it).
+message DialObjectCapabilityStart {
+  string name = 1;
+  // Optional attribution: the workload this call is made on behalf of, for the
+  // provider's audit/policy. Empty for a direct external caller (the daemon
+  // attributes those via the control-API principal).
+  string caller_workload_id = 2;
+}
+
+// A chunk of capsudo session bytes sent toward the capability.
+message DialObjectCapabilityData {
+  bytes content = 1;
+}
+
+// A chunk of capsudo session bytes received from the capability.
+message DialObjectCapabilityReply {
+  DialObjectCapabilityData data = 1;
+}
+
+message ListObjectCapabilitiesRequest {}
+
+// A streamed batch of published object capabilities. The full list is the
+// concatenation of all streamed replies.
+message ListObjectCapabilitiesReply {
+  repeated ObjectCapabilityInfo object_capabilities = 1;
 }
