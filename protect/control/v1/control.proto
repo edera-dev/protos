@@ -11,6 +11,7 @@ service ControlService {
   // Other control API snoops will be skipped from the responses.
   rpc SnoopControl(SnoopControlRequest) returns (stream SnoopControlReply);
   rpc GetHostCpuTopology(GetHostCpuTopologyRequest) returns (GetHostCpuTopologyReply);
+  rpc GetHostResources(GetHostResourcesRequest) returns (GetHostResourcesReply);
 
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesReply);
 
@@ -717,6 +718,37 @@ message GetHostCpuTopologyRequest {}
 // and CPU class.
 message GetHostCpuTopologyReply {
   repeated HostCpuTopologyInfo cpus = 1;
+}
+
+// Requests aggregate memory, CPU, and topology figures for this machine.
+message GetHostResourcesRequest {}
+
+// Memory, CPU, and topology figures for this machine. `hypervisor_*` values
+// describe the whole machine as the hypervisor sees it; `host_*` values
+// describe the host (dom0) that Edera runs in.
+//
+// Memory figures are in bytes. CPU usage is the busy fraction as a percentage
+// (0-100); CPU total time is the cumulative elapsed CPU time since boot, summed
+// across all logical CPUs, in nanoseconds. Core counts are physical cores; see
+// GetHostCpuTopology for the per-CPU breakdown.
+message GetHostResourcesReply {
+  uint64 hypervisor_total_memory = 1;
+  uint64 hypervisor_used_memory = 2;
+  uint64 hypervisor_free_memory = 3;
+  double hypervisor_cpu_usage = 4;
+  uint64 hypervisor_cpu_total_time = 5;
+  uint32 hypervisor_numa_nodes = 6;
+  uint32 hypervisor_cpu_sockets = 7;
+  uint32 hypervisor_cpu_cores = 8;
+
+  uint64 host_total_memory = 9;
+  uint64 host_used_memory = 10;
+  uint64 host_free_memory = 11;
+  double host_cpu_usage = 12;
+  uint64 host_cpu_total_time = 13;
+  uint32 host_numa_nodes = 14;
+  uint32 host_cpu_sockets = 15;
+  uint32 host_cpu_cores = 16;
 }
 
 // Sets the host power management policy. `scheduler` is a CPU frequency governor name,
