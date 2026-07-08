@@ -38,6 +38,10 @@ message ZoneSpec {
   string fork_parent_zone_id = 12;
   // Configures Control API access for the zone.
   ZoneControlApiSpec control_api = 13;
+  // Boots the zone from a disk image via UEFI firmware instead of the
+  // container path. KVM-only; mutually exclusive with `kernel`, `initrd`,
+  // `addons`, `scratch_disk` (rejected by the daemon).
+  ZoneVmImageSpec vm_image = 14;
 }
 
 // Access control specification on the Control API for a zone.
@@ -625,6 +629,22 @@ message ZoneScratchDiskSpecImage {
 message ZoneScratchDiskSpecStaticBlock {
   string path = 1;
   string device = 2;
+}
+
+message ZoneVmImageSpec {
+  // Resolved against the daemon's VM-image directory; absolute paths and
+  // paths escaping it are rejected.
+  string path = 1;
+  // No autodetection: mitigates CHV format-probing CVE GHSA-jmr4-g2hv-mjj6
+  // (hardened in CHV v51.0).
+  ZoneVmImageFormat format = 2;
+}
+
+enum ZoneVmImageFormat {
+  ZONE_VM_IMAGE_FORMAT_UNSPECIFIED = 0;
+  ZONE_VM_IMAGE_FORMAT_RAW = 1;
+  // V1: launched with in-image backing files disabled.
+  ZONE_VM_IMAGE_FORMAT_QCOW2 = 2;
 }
 
 message ZoneDeviceStatus {
