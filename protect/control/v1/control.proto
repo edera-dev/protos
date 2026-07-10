@@ -23,6 +23,7 @@ service ControlService {
   rpc ImportImage(stream ImportImageRequest) returns (stream ImportImageReply);
   rpc RemoveImage(RemoveImageRequest) returns (RemoveImageReply);
   rpc ListImages(ListImagesRequest) returns (stream ListImagesReply);
+  rpc ListKernelVariants(ListKernelVariantsRequest) returns (ListKernelVariantsReply);
 
   rpc CreateZone(CreateZoneRequest) returns (CreateZoneReply);
   rpc DestroyZone(DestroyZoneRequest) returns (DestroyZoneReply);
@@ -641,7 +642,13 @@ message SnoopControlPacket {
 // for moving tags) instead of resolving from the local cache.
 // Set `want_metadata` to receive the OCI manifest/config in the final reply.
 message PullImageRequest {
-  string image = 1;
+  // The image to pull, given either as a literal OCI reference or as a named
+  // kernel variant OCI alias the daemon resolves from its `[zone.kernel-variants]`
+  // mapping in daemon.toml.
+  oneof source {
+    string image = 1;
+    string kernel_variant = 7;
+  }
   OciImageFormat format = 2;
   bool overwrite_cache = 3;
   bool update = 4;
@@ -655,6 +662,22 @@ message PullImageReply {
   OciImageProgress progress = 1;
   OciImageSpec spec = 2;
   OciImageMetadata metadata = 3;
+}
+
+// Lists the named zone kernel variants the daemon can resolve, as configured under
+// `[zone.kernel-variants]` in daemon.toml. These are the names accepted by the
+// `--kernel-variant` / `dev.edera/kernel-variant` selectors.
+message ListKernelVariantsRequest {}
+
+message ListKernelVariantsReply {
+  repeated KernelVariant variants = 1;
+}
+
+// A single named kernel variant: the selectable `name` and the OCI reference
+// the daemon resolves it to.
+message KernelVariant {
+  string name = 1;
+  string image = 2;
 }
 
 // Client stream message for `ImportImage`: uploads an image archive directly into the
