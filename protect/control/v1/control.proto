@@ -11,6 +11,7 @@ service ControlService {
   // Other control API snoops will be skipped from the responses.
   rpc SnoopControl(SnoopControlRequest) returns (stream SnoopControlReply);
   rpc GetHostCpuTopology(GetHostCpuTopologyRequest) returns (GetHostCpuTopologyReply);
+  rpc GetHostResources(GetHostResourcesRequest) returns (GetHostResourcesReply);
 
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesReply);
 
@@ -22,6 +23,7 @@ service ControlService {
   rpc ImportImage(stream ImportImageRequest) returns (stream ImportImageReply);
   rpc RemoveImage(RemoveImageRequest) returns (RemoveImageReply);
   rpc ListImages(ListImagesRequest) returns (stream ListImagesReply);
+  rpc ListKernelVariants(ListKernelVariantsRequest) returns (ListKernelVariantsReply);
 
   rpc CreateZone(CreateZoneRequest) returns (CreateZoneReply);
   rpc DestroyZone(DestroyZoneRequest) returns (DestroyZoneReply);
@@ -33,9 +35,14 @@ service ControlService {
   rpc ResolveZoneIds(ResolveZoneIdsRequest) returns (ResolveZoneIdsReply);
   rpc GetZone(GetZoneRequest) returns (GetZoneReply);
   rpc ListZones(ListZonesRequest) returns (stream ListZonesReply);
+  rpc DiscoverServices(DiscoverServicesRequest) returns (stream DiscoverServicesReply);
+  rpc GetSpireBundle(SpireBundleRequest) returns (SpireBundleReply);
 
   rpc UpdateZoneResources(UpdateZoneResourcesRequest) returns (UpdateZoneResourcesReply);
   rpc ConfigureZoneNetwork(ConfigureZoneNetworkRequest) returns (ConfigureZoneNetworkReply);
+
+  rpc AdvertiseZoneService(AdvertiseZoneServiceRequest) returns (AdvertiseZoneServiceReply);
+  rpc UnadvertiseZoneService(UnadvertiseZoneServiceRequest) returns (UnadvertiseZoneServiceReply);
 
   rpc AttachZoneConsole(stream ZoneConsoleRequest) returns (stream ZoneConsoleReply);
   rpc ExecuteZoneCommand(stream ExecuteZoneCommandRequest) returns (stream ExecuteZoneCommandReply);
@@ -65,6 +72,8 @@ service ControlService {
   rpc DialObjectCapability(stream DialObjectCapabilityRequest) returns (stream DialObjectCapabilityReply);
 
   rpc ListObjectCapabilities(ListObjectCapabilitiesRequest) returns (stream ListObjectCapabilitiesReply);
+
+  rpc SpireMetadata(SpireMetadataRequest) returns (SpireMetadataReply);
 }
 
 // Requests info about the current Edera daemon/host on this machine.
@@ -216,6 +225,18 @@ message ZoneKernelEventStreamUpdate {
 
 // Stops the current syscall event stream subscription.
 message ZoneKernelEventStreamStop {}
+
+message SpireMetadataRequest {
+  string zone_id = 1;
+}
+
+message SpireMetadataReply {
+  string identifier = 1;
+  // The zone the identifier was resolved for. When the request omits zoneID,
+  // the daemon fills it from the authenticated in-zone control channel and
+  // echoes it here so the caller learns its own zone without a side channel.
+  string zone_id = 2;
+}
 
 // roughly maps to libscap's `scap_threadinfo` type.
 // See https://github.com/falcosecurity/libs/blob/af6e6f276bf3a847159b3cdfdbcc9efda9a620b9/userspace/libscap/scap.h#L244
@@ -425,6 +446,18 @@ message ZoneKernelEventParam {
   string param_type_pretty = 5;
 }
 
+message DiscoverServicesRequest {}
+
+message DiscoverServicesReply {
+  repeated ServiceEntry service_entry = 1;
+}
+
+message SpireBundleRequest {}
+
+message SpireBundleReply {
+  string bundle = 1;
+}
+
 // Client stream message for `ExecuteZoneCommand`. The first message sent must be an
 // `ExecuteZoneCommandStart`; subsequent messages carry stdin data or terminal resizes.
 message ExecuteZoneCommandRequest {
@@ -512,6 +545,8 @@ message WatchEventsReply {
   oneof event {
     ZoneChangedEvent zone_changed = 1;
     WorkloadChangedEvent workload_changed = 2;
+    AdvertiseServiceEvent advertise_service = 3;
+    UnadvertiseServiceEvent unadvertise_service = 4;
   }
 }
 
@@ -523,6 +558,14 @@ message ZoneChangedEvent {
 // Carries the full current state of a workload whose state has changed.
 message WorkloadChangedEvent {
   Workload workload = 1;
+}
+
+message AdvertiseServiceEvent {
+  ServiceEntry service_entry = 1;
+}
+
+message UnadvertiseServiceEvent {
+  string uuid = 1;
 }
 
 // Reads the most recently collected metrics (memory, CPU, etc.) for the given zone.
@@ -599,7 +642,13 @@ message SnoopControlPacket {
 // for moving tags) instead of resolving from the local cache.
 // Set `want_metadata` to receive the OCI manifest/config in the final reply.
 message PullImageRequest {
-  string image = 1;
+  // The image to pull, given either as a literal OCI reference or as a named
+  // kernel variant OCI alias the daemon resolves from its `[zone.kernel-variants]`
+  // mapping in daemon.toml.
+  oneof source {
+    string image = 1;
+    string kernel_variant = 7;
+  }
   OciImageFormat format = 2;
   bool overwrite_cache = 3;
   bool update = 4;
@@ -613,6 +662,22 @@ message PullImageReply {
   OciImageProgress progress = 1;
   OciImageSpec spec = 2;
   OciImageMetadata metadata = 3;
+}
+
+// Lists the named zone kernel variants the daemon can resolve, as configured under
+// `[zone.kernel-variants]` in daemon.toml. These are the names accepted by the
+// `--kernel-variant` / `dev.edera/kernel-variant` selectors.
+message ListKernelVariantsRequest {}
+
+message ListKernelVariantsReply {
+  repeated KernelVariant variants = 1;
+}
+
+// A single named kernel variant: the selectable `name` and the OCI reference
+// the daemon resolves it to.
+message KernelVariant {
+  string name = 1;
+  string image = 2;
 }
 
 // Client stream message for `ImportImage`: uploads an image archive directly into the
@@ -676,6 +741,37 @@ message GetHostCpuTopologyRequest {}
 // and CPU class.
 message GetHostCpuTopologyReply {
   repeated HostCpuTopologyInfo cpus = 1;
+}
+
+// Requests aggregate memory, CPU, and topology figures for this machine.
+message GetHostResourcesRequest {}
+
+// Memory, CPU, and topology figures for this machine. `hypervisor_*` values
+// describe the whole machine as the hypervisor sees it; `host_*` values
+// describe the host (dom0) that Edera runs in.
+//
+// Memory figures are in bytes. CPU usage is the busy fraction as a percentage
+// (0-100); CPU total time is the cumulative elapsed CPU time since boot, summed
+// across all logical CPUs, in nanoseconds. Core counts are physical cores; see
+// GetHostCpuTopology for the per-CPU breakdown.
+message GetHostResourcesReply {
+  uint64 hypervisor_total_memory = 1;
+  uint64 hypervisor_used_memory = 2;
+  uint64 hypervisor_free_memory = 3;
+  double hypervisor_cpu_usage = 4;
+  uint64 hypervisor_cpu_total_time = 5;
+  uint32 hypervisor_numa_nodes = 6;
+  uint32 hypervisor_cpu_sockets = 7;
+  uint32 hypervisor_cpu_cores = 8;
+
+  uint64 host_total_memory = 9;
+  uint64 host_used_memory = 10;
+  uint64 host_free_memory = 11;
+  double host_cpu_usage = 12;
+  uint64 host_cpu_total_time = 13;
+  uint32 host_numa_nodes = 14;
+  uint32 host_cpu_sockets = 15;
+  uint32 host_cpu_cores = 16;
 }
 
 // Sets the host power management policy. `scheduler` is a CPU frequency governor name,
@@ -822,6 +918,19 @@ message ConfigureZoneNetworkRequest {
 }
 
 message ConfigureZoneNetworkReply {}
+
+message AdvertiseZoneServiceRequest {
+  string uuid = 1;
+  ZoneServiceConfig config = 2;
+}
+
+message AdvertiseZoneServiceReply {}
+
+message UnadvertiseZoneServiceRequest {
+  ZoneServiceConfig config = 2;
+}
+
+message UnadvertiseZoneServiceReply {}
 
 // Client stream message for `DialNetworkSocket`. The first message must be a
 // `DialNetworkSocketStart`. Subsequent messages carry data to write to the connection.
