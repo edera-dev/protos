@@ -453,6 +453,15 @@ message WorkloadScratchMount {
   string path = 1;
 }
 
+enum SeccompProfileType {
+  // No seccomp filter (also the default when unset).
+  SECCOMP_PROFILE_TYPE_UNCONFINED = 0;
+  // The runtime's built-in default profile.
+  SECCOMP_PROFILE_TYPE_RUNTIME_DEFAULT = 1;
+  // A profile loaded from a file on the node (see seccomp_localhost_ref).
+  SECCOMP_PROFILE_TYPE_LOCALHOST = 2;
+}
+
 message WorkloadSecuritySpec {
   bool strict_user_namespace = 1;
   repeated string raise_capabilities = 2;
@@ -463,6 +472,10 @@ message WorkloadSecuritySpec {
   repeated ProcessNamespace disable_namespaces = 7;
   bool read_only_rootfs = 8;
   bool no_new_privs = 9;
+  SeccompProfileType seccomp_profile_type = 10;
+  // Path to the localhost seccomp profile, relative to the kubelet seccomp
+  // root; set only when seccomp_profile_type == SECCOMP_PROFILE_TYPE_LOCALHOST.
+  string seccomp_localhost_ref = 11;
 }
 
 enum WorkloadState {
