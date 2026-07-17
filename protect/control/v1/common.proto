@@ -476,6 +476,16 @@ message WorkloadSecuritySpec {
   // Path to the localhost seccomp profile, relative to the kubelet seccomp
   // root; set only when seccomp_profile_type == SECCOMP_PROFILE_TYPE_LOCALHOST.
   string seccomp_localhost_ref = 11;
+  AppArmorProfileType apparmor_profile_type = 12;
+}
+
+// We do not support custom Localhost AppArmor policies.
+// Only RuntimeDefault, and Unconfined.
+enum AppArmorProfileType {
+  // No AppArmor confinement (also the default when unset).
+  APP_ARMOR_PROFILE_TYPE_UNCONFINED = 0;
+  // The Edera runtime's built-in default profile.
+  APP_ARMOR_PROFILE_TYPE_RUNTIME_DEFAULT = 1;
 }
 
 enum WorkloadState {
