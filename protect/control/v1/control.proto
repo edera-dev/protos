@@ -27,6 +27,8 @@ service ControlService {
 
   rpc CreateZone(CreateZoneRequest) returns (CreateZoneReply);
   rpc DestroyZone(DestroyZoneRequest) returns (DestroyZoneReply);
+  rpc RestartZone(RestartZoneRequest) returns (RestartZoneReply);
+
   rpc SuspendZone(SuspendZoneRequest) returns (SuspendZoneReply);
   rpc ResumeZone(ResumeZoneRequest) returns (ResumeZoneReply);
   rpc ForkZone(ForkZoneRequest) returns (ForkZoneReply);
@@ -113,6 +115,18 @@ message DestroyZoneRequest {
 }
 
 message DestroyZoneReply {}
+
+// Restart tears a zone's runtime down and re-creates it from its stored spec,
+// re-launching its workloads. Valid from Failed (retry a crashed/failed zone),
+// Ready, and Created (an explicit destroy-and-recreate); rejected while the
+// zone is mid-transition. The daemon determines validity and refuses
+// control-plane-owned (e.g. CRI/Kubernetes) zones, so no extra request fields
+// are needed here.
+message RestartZoneRequest {
+  string zone_id = 1;
+}
+
+message RestartZoneReply {}
 
 // Cooperatively suspends a running Edera zone. The guest is asked to quiesce its
 // devices and self-suspend; the zone stays resident in memory and can later be
