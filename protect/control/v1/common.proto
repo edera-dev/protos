@@ -562,6 +562,22 @@ message HostCpuTopologyInfo {
   HostCpuTopologyClass class = 5;
 }
 
+message VcpuInfo {
+  uint32 vcpu = 1;
+  bool online = 2;
+  bool blocked = 3;
+  bool running = 4;
+  uint64 cpu_time = 5;
+  uint32 cpu = 6;
+  repeated uint32 hard_affinity = 7;
+  repeated uint32 soft_affinity = 8;
+}
+
+message VcpuInfoSet {
+  string zone_id = 1;
+  repeated VcpuInfo vcpus = 2;
+}
+
 // Tar and directory formats are not launchable, and are intended for internal images.
 enum OciImageFormat {
   OCI_IMAGE_FORMAT_UNKNOWN = 0;

@@ -38,6 +38,7 @@ service ControlService {
   rpc DiscoverServices(DiscoverServicesRequest) returns (stream DiscoverServicesReply);
   rpc GetSpireBundle(SpireBundleRequest) returns (SpireBundleReply);
 
+  rpc GetZonesVcpuInfos(GetZonesVcpuInfosRequest) returns (stream GetZonesVcpuInfosReply);
   rpc UpdateZoneResources(UpdateZoneResourcesRequest) returns (UpdateZoneResourcesReply);
   rpc ConfigureZoneNetwork(ConfigureZoneNetworkRequest) returns (ConfigureZoneNetworkReply);
 
@@ -181,6 +182,17 @@ message ListZonesRequest {}
 // A streamed batch of zones. The full zone list is the concatenation of all streamed message replies.
 message ListZonesReply {
   repeated Zone zones = 1;
+}
+
+// Get info for all vCPUs of specified zones.
+message GetZonesVcpuInfosRequest {
+  repeated string zone_ids = 1;
+}
+
+// A streamed batch of per-zone vCPU info sets. The full result is the concatenation of all
+// streamed message replies.
+message GetZonesVcpuInfosReply {
+  repeated VcpuInfoSet vcpu_info_sets = 1;
 }
 
 // Send this control message to Edera to initiate a stream of ZoneKernelSyscallEvents
