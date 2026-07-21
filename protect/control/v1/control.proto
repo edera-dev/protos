@@ -39,6 +39,7 @@ service ControlService {
   rpc GetSpireBundle(SpireBundleRequest) returns (SpireBundleReply);
 
   rpc GetZonesVcpuInfos(GetZonesVcpuInfosRequest) returns (stream GetZonesVcpuInfosReply);
+  rpc SetZoneVcpuAffinity(SetZoneVcpuAffinityRequest) returns (SetZoneVcpuAffinityReply);
   rpc UpdateZoneResources(UpdateZoneResourcesRequest) returns (UpdateZoneResourcesReply);
   rpc ConfigureZoneNetwork(ConfigureZoneNetworkRequest) returns (ConfigureZoneNetworkReply);
 
@@ -194,6 +195,17 @@ message GetZonesVcpuInfosRequest {
 message GetZonesVcpuInfosReply {
   repeated VcpuInfoSet vcpu_info_sets = 1;
 }
+
+// Sets the hard and soft CPU affinities for zone vCPUs.
+// `vCPU` can be either the vCPU index or the string "all".
+message SetZoneVcpuAffinityRequest {
+  string zone_id = 1;
+  string vcpu = 2;
+  repeated uint32 hard_affinity = 3;
+  repeated uint32 soft_affinity = 4;
+}
+
+message SetZoneVcpuAffinityReply {}
 
 // Send this control message to Edera to initiate a stream of ZoneKernelSyscallEvents
 // from the specified zone_id.
