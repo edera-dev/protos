@@ -71,6 +71,7 @@ message ZoneResourcesSpec {
   uint32 max_cpus = 3;
   uint32 min_cpus = 7;
   uint32 target_cpus = 4;
+  VcpuAffinitiesSpecSet cpus_affinities_set = 8;
   ZoneResourceAdjustmentPolicy adjustment_policy = 5;
 }
 
@@ -586,6 +587,25 @@ message VcpuInfo {
 message VcpuInfoSet {
   string zone_id = 1;
   repeated VcpuInfo vcpus = 2;
+}
+
+message AllVcpus {}
+
+message VcpuIdSpecifier {
+  oneof index {
+    AllVcpus all_vcpus = 1;
+    uint32 value = 2;
+  }
+}
+
+message VcpuAffinitiesSpec {
+  VcpuIdSpecifier vcpu = 1;
+  repeated uint32 hard_affinity = 2;
+  repeated uint32 soft_affinity = 3;
+}
+
+message VcpuAffinitiesSpecSet {
+  repeated VcpuAffinitiesSpec entries = 1;
 }
 
 // Tar and directory formats are not launchable, and are intended for internal images.
