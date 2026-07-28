@@ -787,6 +787,7 @@ message GetHostResourcesReply {
   uint32 hypervisor_numa_nodes = 6;
   uint32 hypervisor_cpu_sockets = 7;
   uint32 hypervisor_cpu_cores = 8;
+  uint32 hypervisor_cpu_threads = 17;
 
   uint64 host_total_memory = 9;
   uint64 host_used_memory = 10;
