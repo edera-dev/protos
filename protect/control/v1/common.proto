@@ -478,6 +478,43 @@ message WorkloadSecuritySpec {
   // root; set only when seccomp_profile_type == SECCOMP_PROFILE_TYPE_LOCALHOST.
   string seccomp_localhost_ref = 11;
   AppArmorProfileType apparmor_profile_type = 12;
+  // A fully-resolved seccomp filter, used instead of seccomp_profile_type/
+  // seccomp_localhost_ref by callers that have already resolved the actual
+  // syscall rules themselves and have no symbolic type/path left to describe
+  // it with (e.g. a containerd v2 shim: containerd's own CRI plugin resolves
+  // RuntimeDefault/Localhost into the OCI spec's `linux.seccomp` before ever
+  // invoking the shim, so the shim only ever sees the resolved rules, never a
+  // type or a profile path). When set, this is compiled and enforced
+  // verbatim, and seccomp_profile_type/seccomp_localhost_ref are ignored.
+  optional ResolvedSeccompProfile resolved_seccomp_profile = 13;
+}
+
+// Mirrors a resolved OCI LinuxSeccomp filter field-for-field, so a caller
+// that already has one (see WorkloadSecuritySpec.resolved_seccomp_profile)
+// can hand it over directly instead of re-deriving a symbolic type/path.
+message ResolvedSeccompProfile {
+  // e.g. "SCMP_ACT_ERRNO", "SCMP_ACT_ALLOW" (OCI's LinuxSeccompAction, as its
+  // own wire string).
+  string default_action = 1;
+  optional uint32 default_errno_ret = 2;
+  // e.g. "SCMP_ARCH_X86_64". Empty means "all/native" (OCI's default).
+  repeated string architectures = 3;
+  repeated ResolvedSeccompSyscallRule syscalls = 4;
+}
+
+message ResolvedSeccompSyscallRule {
+  repeated string names = 1;
+  string action = 2;
+  optional uint32 errno_ret = 3;
+  repeated ResolvedSeccompSyscallArg args = 4;
+}
+
+message ResolvedSeccompSyscallArg {
+  uint32 index = 1;
+  uint64 value = 2;
+  optional uint64 value_two = 3;
+  // e.g. "SCMP_CMP_EQ" (OCI's LinuxSeccompOperator).
+  string op = 4;
 }
 
 // We do not support custom Localhost AppArmor policies.
