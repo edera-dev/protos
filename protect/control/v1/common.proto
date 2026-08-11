@@ -406,17 +406,41 @@ message WorkloadSpec {
 message ObjectCapabilitySpec {
   // Capabilities this workload offers to others.
   repeated ObjectCapabilityPublishSpec publishes = 1;
-  // Capabilities this workload consumes, by name (e.g.
-  // "dev.edera/whatever/deploy"). A receive that cannot be resolved is fatal:
-  // the workload will not start, because the capability is a prerequisite.
-  repeated string receives = 2;
+  // Tag 2 was `repeated string receives`, before a consume could name a
+  // capability *type* satisfied by several implementations. Both the tag and
+  // the name stay burned, so neither the wire nor the JSON form can collide
+  // with the message-typed field that replaces it.
+  reserved 2;
+  reserved "receives";
+  // Capabilities this workload consumes. A consume that cannot be resolved is
+  // fatal: the workload will not start, because the capability is a
+  // prerequisite.
+  repeated ObjectCapabilityConsumeSpec consumes = 3;
+}
+
+// A single capability a workload consumes.
+//
+// `name` may be either a published capability's own identity or a capability
+// *type* that several publishes declare in their `implements`. When more than
+// one running provider satisfies it, the highest `priority` wins; `provider`
+// pins a specific implementation instead.
+message ObjectCapabilityConsumeSpec {
+  // The capability requested, e.g. "dev.edera/bar". Also determines the
+  // /run/ocap/<name> socket path projected into this workload, so the
+  // consumer's path never changes when the implementation does.
+  string name = 1;
+  // Optional pin: require the implementation published under this name (e.g.
+  // "dev.edera/foo"). Empty selects by priority. The pin binds late, so the
+  // providing workload may restart or move zones without invalidating it.
+  string provider = 2;
 }
 
 // A single capability a workload publishes. Mirrors capsudod's attenuation:
 // a fixed command/environment and whether the client may influence them.
 message ObjectCapabilityPublishSpec {
-  // Capability identity, e.g. "dev.edera/whatever/deploy". Determines the
-  // /run/ocap/<name> socket path projected into receiving workloads.
+  // This implementation's own identity, e.g. "dev.edera/foo". A publish always
+  // satisfies a consume of its own name, in addition to everything in
+  // `implements`.
   string name = 1;
   // Fixed program and arguments. Empty means the client supplies argv.
   repeated string command = 2;
@@ -431,11 +455,18 @@ message ObjectCapabilityPublishSpec {
   optional uint32 run_as_gid = 7;
   // Working directory for the delegated child. Empty leaves it unchanged.
   string working_dir = 8;
+  // Capability types this implementation satisfies, e.g. ["dev.edera/bar"].
+  // A consume naming any of these may be bound to this publish.
+  repeated string implements = 9;
+  // Preference weight among providers of the same capability. Higher wins;
+  // the default 0 makes an unweighted publish the lowest preference. Ties are
+  // broken deterministically so selection is stable across daemon restarts.
+  int32 priority = 10;
 }
 
 // Status of one published object capability, for discovery/observability.
 message ObjectCapabilityInfo {
-  // Capability identity, e.g. "dev.edera/whatever/deploy".
+  // The implementation's own identity, e.g. "dev.edera/foo".
   string name = 1;
   // The zone whose agent supervises the backing capsudod.
   string provider_zone_id = 2;
@@ -443,6 +474,11 @@ message ObjectCapabilityInfo {
   string provider_workload_id = 3;
   // Whether the backing capsudod is up and accepting connections.
   bool ready = 4;
+  // Capability types this implementation also satisfies, e.g.
+  // ["dev.edera/bar"]. A consume of any of these may resolve here.
+  repeated string implements = 5;
+  // Preference weight among providers of the same capability; higher wins.
+  int32 priority = 6;
 }
 
 message CgroupLimit {

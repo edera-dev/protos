@@ -991,15 +991,21 @@ message DialObjectCapabilityRequest {
   }
 }
 
-// Dials the object capability published under `name`, which the daemon resolves
-// to its provider zone. Once established, the stream is a bidirectional byte
-// proxy carrying one capsudo session (descriptor passing is simulated over it).
+// Dials the object capability requested as `name`, which the daemon resolves to
+// a running provider and its zone. Once established, the stream is a
+// bidirectional byte proxy carrying one capsudo session (descriptor passing is
+// simulated over it).
 message DialObjectCapabilityStart {
+  // The capability requested: either an implementation's own identity or a
+  // capability type declared in some publish's `implements`.
   string name = 1;
   // Optional attribution: the workload this call is made on behalf of, for the
   // provider's audit/policy. Empty for a direct external caller (the daemon
   // attributes those via the control-API principal).
   string caller_workload_id = 2;
+  // Optional pin: require the implementation published under this name. Empty
+  // selects the highest-priority running provider of `name`.
+  string provider = 3;
 }
 
 // A chunk of capsudo session bytes sent toward the capability.
