@@ -30,6 +30,8 @@ service ControlService {
   rpc SuspendZone(SuspendZoneRequest) returns (SuspendZoneReply);
   rpc ResumeZone(ResumeZoneRequest) returns (ResumeZoneReply);
   rpc ForkZone(ForkZoneRequest) returns (ForkZoneReply);
+  rpc SnapshotZone(SnapshotZoneRequest) returns (stream SnapshotZoneReply);
+  rpc RestoreZone(stream RestoreZoneRequest) returns (RestoreZoneReply);
 
   rpc ResolveZoneId(ResolveZoneIdRequest) returns (ResolveZoneIdReply);
   rpc ResolveZoneIds(ResolveZoneIdsRequest) returns (ResolveZoneIdsReply);
@@ -141,6 +143,81 @@ message ForkZoneRequest {
 
 // Returns the UUID of the newly forked child zone.
 message ForkZoneReply {
+  string zone_id = 1;
+}
+
+// Captures a zone's complete state -- vcpus, guest memory, hypervisor
+// configuration, device topology, and the zone's own control-plane record and
+// workloads -- as a stream of opaque bytes the caller stores and later hands
+// back to `RestoreZone`.
+//
+// The zone is cooperatively suspended for the capture and resumed afterwards
+// unless `leave_suspended` is set, so a snapshot is a consistent point rather
+// than a smear of a running guest.
+message SnapshotZoneRequest {
+  string zone_id = 1;
+  // Leave the zone suspended once the capture completes instead of resuming
+  // it. Use this when the snapshot is about to become the live copy elsewhere.
+  bool leave_suspended = 2;
+  // Compress record payloads. Guest memory compresses well; the cost is host
+  // CPU during capture.
+  bool compress = 3;
+  // Embed the contents of writable disks in the stream. Without it the snapshot
+  // only references them, so restoring depends on that backing still existing
+  // and being unchanged.
+  bool include_disk_contents = 4;
+}
+
+// Streamed reply for `SnapshotZone`. The first message carries `start`,
+// describing what is about to be streamed; then `chunk`s carrying the snapshot
+// bytes in order; then a final `complete`. The concatenation of every `chunk`
+// is the snapshot, and nothing else in the stream belongs in the stored bytes.
+message SnapshotZoneReply {
+  oneof reply {
+    SnapshotZoneStart start = 1;
+    bytes chunk = 2;
+    SnapshotZoneComplete complete = 3;
+  }
+}
+
+message SnapshotZoneStart {
+  string zone_id = 1;
+  ZoneSnapshotBackend backend = 2;
+  ZoneSnapshotArch arch = 3;
+  uint32 format_version = 4;
+}
+
+// Closes the reply stream once the capture is complete, so a caller can check
+// that what it wrote is as long as what the daemon sent.
+message SnapshotZoneComplete {
+  uint64 total_bytes = 1;
+}
+
+// Recreates a zone from a snapshot produced by `SnapshotZone`. The first
+// message must carry `start`; every message after it carries a `chunk` of the
+// snapshot, in the order it was received. The daemon rejects a snapshot whose
+// backend or architecture tag does not match the host before acting on any of
+// the guest state it carries.
+message RestoreZoneRequest {
+  oneof request {
+    RestoreZoneStart start = 1;
+    bytes chunk = 2;
+  }
+}
+
+message RestoreZoneStart {
+  // Overrides the zone name recorded in the snapshot. Empty keeps it.
+  string name = 1;
+  // Restore under this zone id instead of a freshly allocated one. Empty
+  // allocates a new id, which is what lets one snapshot seed many zones.
+  string zone_id = 2;
+  // Restore even when the snapshot's source host differs from this one.
+  // Backing store the snapshot only references (rather than embeds) may not
+  // exist here, so this is opt-in.
+  bool allow_foreign_host = 3;
+}
+
+message RestoreZoneReply {
   string zone_id = 1;
 }
 
