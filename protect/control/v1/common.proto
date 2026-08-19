@@ -131,6 +131,28 @@ enum ZoneVirtualizationBackend {
   ZONE_VIRTUALIZATION_BACKEND_AUTOMATIC = 3;
 }
 
+// Hypervisor family a zone snapshot was captured from. A snapshot may only be
+// restored on a host running the same backend: the guest-state records inside
+// it are backend-private, so a Xen stream carries nothing a KVM host can act
+// on, and vice versa. The tag is checked before any of that state is
+// interpreted, which is what lets a second backend be added later without
+// either being able to consume the other's stream.
+enum ZoneSnapshotBackend {
+  ZONE_SNAPSHOT_BACKEND_UNKNOWN = 0;
+  ZONE_SNAPSHOT_BACKEND_XEN_PV = 1;
+  ZONE_SNAPSHOT_BACKEND_XEN_PVH = 2;
+  ZONE_SNAPSHOT_BACKEND_KVM = 3;
+}
+
+// Guest instruction set a zone snapshot was captured for. Held separately from
+// the backend: one backend spans architectures whose guest state has nothing in
+// common.
+enum ZoneSnapshotArch {
+  ZONE_SNAPSHOT_ARCH_UNKNOWN = 0;
+  ZONE_SNAPSHOT_ARCH_X86_64 = 1;
+  ZONE_SNAPSHOT_ARCH_AARCH64 = 2;
+}
+
 // Strategy used when expanding the selected node set beyond the seed node.
 // - UNSPECIFIED is treated as COMPACT.
 // - COMPACT: Expand to the nearest unselected NUMA node by SLIT distance from the already-selected set, tie-breaking by most free memory.
@@ -247,6 +269,7 @@ enum ZoneState {
   ZONE_STATE_SUSPENDED = 9;
   ZONE_STATE_RESUMING = 10;
   ZONE_STATE_FORKING = 11;
+  ZONE_STATE_RESTORING = 12;
 }
 
 enum ZoneNetworkIpVersion {
