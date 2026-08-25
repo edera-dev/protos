@@ -827,6 +827,14 @@ message ZoneDiskStatus {
   bool delete = 6;
 }
 
+enum ZoneMemoryPressureState {
+  ZONE_MEMORY_PRESSURE_STATE_UNKNOWN = 0;
+  ZONE_MEMORY_PRESSURE_STATE_OK = 1;
+  ZONE_MEMORY_PRESSURE_STATE_SOFT = 2;
+  ZONE_MEMORY_PRESSURE_STATE_HARD = 3;
+  ZONE_MEMORY_PRESSURE_STATE_CRITICAL = 4;
+}
+
 message ZoneMountStatus {
   uint64 device_id = 1;
   string host_path = 2;

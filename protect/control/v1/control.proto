@@ -550,6 +550,7 @@ message WatchEventsReply {
     WorkloadChangedEvent workload_changed = 2;
     AdvertiseServiceEvent advertise_service = 3;
     UnadvertiseServiceEvent unadvertise_service = 4;
+    ZoneMemoryPressureChangedEvent zone_memory_pressure_changed = 5;
   }
 }
 
@@ -1004,3 +1005,16 @@ message ListObjectCapabilitiesRequest {}
 message ListObjectCapabilitiesReply {
   repeated ObjectCapabilityInfo object_capabilities = 1;
 }
+
+// Carries a guest NUMA node's memory-pressure state transition for a zone.
+message ZoneMemoryPressureChangedEvent {
+  string zone_id = 1;
+  uint32 nid = 2;
+  ZoneMemoryPressureState old_state = 3;
+  ZoneMemoryPressureState new_state = 4;
+  uint64 transition_timestamp = 5;
+  // Set only for kube-managed zones.
+  optional string namespace = 6;
+  optional string pod = 7;
+}
+
