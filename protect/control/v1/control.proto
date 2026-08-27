@@ -687,6 +687,10 @@ message KernelVariant {
 // local image cache, as a sequence of `chunk`s with `last_chunk` set on the final one.
 // The first message must carry `image`, `digest` and `format`, identifying the image
 // and selecting the packed format to unpack it into.
+//
+// `local_path` replaces the `chunk` stream for a caller that shares a filesystem with
+// the daemon: it names a local OCI-layout directory for the daemon to read directly, in
+// a single request.
 message ImportImageRequest {
   string digest = 1;
   string image = 2;
@@ -695,6 +699,7 @@ message ImportImageRequest {
   bool last_chunk = 5;
   bool overwrite_cache = 6;
   bool want_metadata = 7;
+  string local_path = 8;
 }
 
 // Streamed reply for `ImportImage`. `accepted` indicates whether the daemon will consume
