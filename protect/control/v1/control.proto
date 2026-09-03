@@ -700,6 +700,7 @@ message ImportImageRequest {
   bool overwrite_cache = 6;
   bool want_metadata = 7;
   string local_path = 8;
+  optional string source_digest = 9;
 }
 
 // Streamed reply for `ImportImage`. `accepted` indicates whether the daemon will consume
