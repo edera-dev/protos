@@ -158,6 +158,7 @@ message OciImageInfo {
   OciImageFormat format = 2;
   repeated string names = 3;
   OciImageMetadata metadata = 4;
+  optional string source_digest = 5;
 }
 
 enum ProcessNamespace {
