@@ -187,10 +187,22 @@ message ProcessSpec {
   repeated int64 additional_gids = 13;
 }
 
+// How a host mount is cached inside the zone. CACHED enables caching for the host mount.
+// NONE disables mount caching.
+//
+// The KVM backend currently doesn't use this, because it doesn't support per-mount FS devices.
+enum MountCacheMode {
+  // Treated as CACHED.
+  MOUNT_CACHE_MODE_UNKNOWN = 0;
+  MOUNT_CACHE_MODE_CACHED = 1;
+  MOUNT_CACHE_MODE_NONE = 2;
+}
+
 message MountSpec {
   string host_path = 1;
   string target_path = 2;
   bool read_only = 3;
+  MountCacheMode cache = 4;
 }
 
 message EnvironmentVariableSpec {
@@ -628,6 +640,7 @@ message WorkloadMountInfo {
   string host_path = 3;
   string target_path = 5;
   bool read_only = 6;
+  MountCacheMode cache = 7;
   reserved 1, 4;
 }
 
