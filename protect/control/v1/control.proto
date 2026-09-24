@@ -198,8 +198,9 @@ message ExportZoneComplete {
 //
 // The daemon checks the snapshot against this host before acting on any of the
 // guest state it carries: the backend and architecture must match, and the
-// CPU, hypervisor version and platform recorded at export must be ones this
-// host can continue the guest on. A refusal names every incompatibility found.
+// guest's CPU, clock, zone agent and hypervisor state must be ones this host
+// can continue. Read-only images the snapshot references by path must exist
+// here unchanged in size. A refusal names every incompatibility found.
 message ImportZoneRequest {
   oneof request {
     ImportZoneStart start = 1;
@@ -208,15 +209,14 @@ message ImportZoneRequest {
 }
 
 message ImportZoneStart {
+  reserved 3;
+  reserved "allow_foreign_host";
+
   // Overrides the zone name recorded in the snapshot. Empty keeps it.
   string name = 1;
   // Import under this zone id instead of a freshly allocated one. Empty
   // allocates a new id, which is what lets one snapshot seed many zones.
   string zone_id = 2;
-  // Import a snapshot exported on another host even though it references
-  // read-only images by host path; those paths must hold the same images here.
-  // Does not override the CPU or hypervisor compatibility checks.
-  bool allow_foreign_host = 3;
 }
 
 message ImportZoneReply {
