@@ -21,6 +21,7 @@ service ControlService {
 
   rpc PullImage(PullImageRequest) returns (stream PullImageReply);
   rpc ImportImage(stream ImportImageRequest) returns (stream ImportImageReply);
+  rpc ImportPackedImage(stream ImportPackedImageRequest) returns (ImportPackedImageReply);
   rpc RemoveImage(RemoveImageRequest) returns (RemoveImageReply);
   rpc ListImages(ListImagesRequest) returns (stream ListImagesReply);
   rpc ListKernelVariants(ListKernelVariantsRequest) returns (ListKernelVariantsReply);
@@ -713,6 +714,35 @@ message ImportImageReply {
   OciImageProgress progress = 2;
   OciImageSpec spec = 3;
   OciImageMetadata metadata = 4;
+}
+
+// Client stream message for `ImportPackedImage`: stores an image the caller has already
+// packed into `format` directly in the local image cache, skipping the unpack and repack
+// that `ImportImage` performs. The daemon trusts the caller to have built the artifact
+// from the image `manifest` and `config` describe; it validates their shape and that
+// `digest` is the digest of `manifest`, but never the artifact's contents.
+//
+// The first message must carry `image`, `digest`, `format`, `manifest` and `config`. The
+// artifact follows as a sequence of `chunk`s with `last_chunk` set on the final one (a
+// tar archive for `OCI_IMAGE_FORMAT_DIRECTORY`). `local_path` replaces the `chunk` stream
+// for a caller that shares a filesystem with the daemon: it names the artifact, which must
+// be staged under the daemon's temporary directory and which the daemon moves into the
+// cache, in a single request. When the image is already cached and `overwrite_cache` is
+// unset, the artifact is left untouched.
+message ImportPackedImageRequest {
+  string image = 1;
+  string digest = 2;
+  OciImageFormat format = 3;
+  bytes manifest = 4;
+  bytes config = 5;
+  bytes chunk = 6;
+  bool last_chunk = 7;
+  string local_path = 8;
+  bool overwrite_cache = 9;
+}
+
+message ImportPackedImageReply {
+  OciImageSpec spec = 1;
 }
 
 // Removes the image identified by `digest` and `format` from the local image cache.
