@@ -57,6 +57,7 @@ service ControlService {
   rpc StartWorkload(StartWorkloadRequest) returns (StartWorkloadReply);
   rpc StopWorkload(StopWorkloadRequest) returns (StopWorkloadReply);
   rpc DestroyWorkload(DestroyWorkloadRequest) returns (DestroyWorkloadReply);
+  rpc UpdateWorkloadResources(UpdateWorkloadResourcesRequest) returns (UpdateWorkloadResourcesReply);
 
   rpc AttachWorkloadConsole(stream WorkloadConsoleRequest) returns (stream WorkloadConsoleReply);
 
@@ -987,6 +988,15 @@ message DestroyWorkloadRequest {
 }
 
 message DestroyWorkloadReply {}
+
+// Live-updates the cgroup limits of an existing workload. Each named limit replaces the
+// workload's current value; limits the request does not name keep theirs.
+message UpdateWorkloadResourcesRequest {
+  string workload_id = 1;
+  repeated CgroupLimit cgroup_limits = 2;
+}
+
+message UpdateWorkloadResourcesReply {}
 
 // Resolves workload "friendly name" to a singular workload UUID, if possible. Matching is exact.
 // See also `ResolveWorkloadIdsRequest` (plural).
