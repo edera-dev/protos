@@ -23,6 +23,7 @@ service ControlService {
   rpc ImportImage(stream ImportImageRequest) returns (stream ImportImageReply);
   rpc ImportPackedImage(stream ImportPackedImageRequest) returns (ImportPackedImageReply);
   rpc RemoveImage(RemoveImageRequest) returns (RemoveImageReply);
+  rpc PruneImages(PruneImagesRequest) returns (PruneImagesReply);
   rpc ListImages(ListImagesRequest) returns (stream ListImagesReply);
   rpc ListKernelVariants(ListKernelVariantsRequest) returns (ListKernelVariantsReply);
 
@@ -819,6 +820,16 @@ message ImportPackedImageRequest {
   bool last_chunk = 7;
   string local_path = 8;
   bool overwrite_cache = 9;
+  // A squashfs blob that another store owns. The daemon links its cache entry to the
+  // blob and never moves or deletes it. When set, chunk, last_chunk and local_path are ignored.
+  LinkedBlob linked_blob = 10;
+}
+
+// The blob `<root>/blobs/sha256/<hex>` of `digest`, where `root` is the path that the
+// daemon config maps `store` to under `[oci.external-stores]`.
+message LinkedBlob {
+  string store = 1;
+  string digest = 2;
 }
 
 message ImportPackedImageReply {
@@ -834,6 +845,14 @@ message RemoveImageRequest {
 // `removed` indicates whether the image existed and was removed.
 message RemoveImageReply {
   bool removed = 1;
+}
+
+// Removes each cached image whose linked blob is gone, unless a workload uses it.
+message PruneImagesRequest {}
+
+// The images that were removed.
+message PruneImagesReply {
+  repeated OciImageSpec removed = 1;
 }
 
 // Lists all images currently present in the local image cache.
