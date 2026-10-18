@@ -223,72 +223,89 @@ message ImportZoneStart {
   // Import under this zone id instead of a freshly allocated one. Empty
   // allocates a new id, which is what lets one snapshot seed many zones.
   string zone_id = 2;
-  // Restore the snapshot as the zone of a Kubernetes pod. The zone is left
-  // paused, with its host mounts unbound, until the pod's runtime claims it.
-  PodRestore restore = 4;
+  // Hold the imported zone, paused and with its host mounts unbound, for a
+  // runtime that claims it with the same `claim`.
+  RestoreClaim restore = 4;
 }
 
 message ImportZoneReply {
   string zone_id = 1;
 }
 
-// The pod an imported zone is restored for. The three coordinates together are
-// what a runtime must present to claim the zone, so a pod cannot claim a zone
-// meant for another.
-message PodRestore {
-  string uid = 1;
-  string namespace = 2;
-  string name = 3;
-  // Containers of the source pod that had already completed, which are
-  // reported to the kubelet as exited instead of being run again.
-  repeated string completed_containers = 4;
+// What an imported zone is held for. The zone waits, paused, until a runtime
+// presents the same `claim`, so a runtime can only claim a zone that was
+// imported for it. The daemon compares the string and nothing more.
+message RestoreClaim {
+  string claim = 1;
+  // Kept with the zone and returned when it is claimed. The daemon does not
+  // read them.
+  repeated AnnotationSpec annotations = 2;
 }
 
-// Claims the zone imported for a pod. Waits, up to the daemon's claim timeout,
-// for the import to exist. A zone can be claimed once.
+// Claims the zone imported for `claim`. Waits, up to the daemon's claim
+// timeout, for the import to exist. A zone can be claimed once.
 message ClaimRestoredZoneRequest {
-  string uid = 1;
-  string namespace = 2;
-  string name = 3;
+  string claim = 1;
 }
 
 message ClaimRestoredZoneReply {
   string zone_id = 1;
   repeated RestoredWorkload workloads = 2;
-  repeated string completed_containers = 3;
+  // The annotations the import was given.
+  repeated AnnotationSpec annotations = 3;
 }
 
 // A workload the restored zone was running, as the snapshot recorded it.
 message RestoredWorkload {
   string workload_id = 1;
-  string container_name = 2;
-  string image = 3;
+  string image = 2;
+  repeated AnnotationSpec annotations = 3;
   repeated RestoredMount mounts = 4;
 }
 
-// A host mount of a restored workload. The host path the snapshot recorded is
-// not reported and is never used: `AdoptWorkload` supplies the new one.
+// A host mount of a restored workload. `recorded_host_path` names a path on the
+// host that took the snapshot and is only a hint: the daemon never binds it.
 message RestoredMount {
   string target_path = 1;
   bool read_only = 2;
+  string recorded_host_path = 3;
 }
 
-// Resumes a claimed zone and brings its network and workload ids up to date.
+// What a mount that has no host path yet is bound to until a container
+// supplies it.
+enum RestoredPlaceholder {
+  RESTORED_PLACEHOLDER_UNSPECIFIED = 0;
+  RESTORED_PLACEHOLDER_FILE = 1;
+  RESTORED_PLACEHOLDER_DIRECTORY = 2;
+}
+
+// Where one mount of a restored workload is bound before its zone resumes.
+message RestoredBinding {
+  string workload_id = 1;
+  string target_path = 2;
+  // The host path to bind. The daemon resolves it and refuses one outside its
+  // configured restore bind roots. Empty binds `placeholder` instead.
+  string host_path = 3;
+  RestoredPlaceholder placeholder = 4;
+}
+
+// Binds every mount of a claimed zone, then resumes it. Each mount of each
+// running workload needs exactly one binding. `annotations` are set on the
+// zone's spec, replacing any with the same key.
 message StartRestoredZoneRequest {
   string zone_id = 1;
-  // Set on the zone's spec, replacing any with the same key, so the zone
-  // carries the new pod's sandbox identity instead of the source pod's.
-  repeated AnnotationSpec annotations = 2;
+  repeated RestoredBinding bindings = 2;
+  repeated AnnotationSpec annotations = 3;
 }
 
 message StartRestoredZoneReply {}
 
-// Binds a restored workload to the container the kubelet created for it.
+// Binds a restored workload to the container a runtime created for it.
 // `mounts` are the container's own mounts: each of the workload's recorded
 // mounts must have exactly one with the same target path and read-only flag,
-// and no other mount may be left over. `annotations` are set on the workload,
-// replacing any with the same key, so it carries the new container's own
-// identity instead of the source pod's. Repeating the call for the same
+// and no other mount may be left over. A mount whose resolved host path differs
+// from the one it is bound to is rebound. `annotations` are set on the
+// workload, replacing any with the same key. Repeating the call for the same
 // workload replaces the earlier one.
 message AdoptWorkloadRequest {
   string zone_id = 1;
