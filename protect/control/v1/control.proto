@@ -276,6 +276,9 @@ message RestoredMount {
 // Resumes a claimed zone and brings its network and workload ids up to date.
 message StartRestoredZoneRequest {
   string zone_id = 1;
+  // Set on the zone's spec, replacing any with the same key, so the zone
+  // carries the new pod's sandbox identity instead of the source pod's.
+  repeated AnnotationSpec annotations = 2;
 }
 
 message StartRestoredZoneReply {}
