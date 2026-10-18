@@ -283,7 +283,9 @@ message StartRestoredZoneReply {}
 // Binds a restored workload to the container the kubelet created for it.
 // `mounts` are the container's own mounts: each of the workload's recorded
 // mounts must have exactly one with the same target path and read-only flag,
-// and no other mount may be left over. Repeating the call for the same
+// and no other mount may be left over. `annotations` are set on the workload,
+// replacing any with the same key, so it carries the new container's own
+// identity instead of the source pod's. Repeating the call for the same
 // workload replaces the earlier one.
 message AdoptWorkloadRequest {
   string zone_id = 1;
@@ -291,6 +293,7 @@ message AdoptWorkloadRequest {
   string container_id = 3;
   string sandbox_id = 4;
   repeated MountSpec mounts = 5;
+  repeated AnnotationSpec annotations = 6;
 }
 
 message AdoptWorkloadReply {}
