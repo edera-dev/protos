@@ -34,6 +34,9 @@ service ControlService {
   rpc ForkZone(ForkZoneRequest) returns (ForkZoneReply);
   rpc ExportZone(ExportZoneRequest) returns (stream ExportZoneReply);
   rpc ImportZone(stream ImportZoneRequest) returns (ImportZoneReply);
+  rpc ClaimRestoredZone(ClaimRestoredZoneRequest) returns (ClaimRestoredZoneReply);
+  rpc StartRestoredZone(StartRestoredZoneRequest) returns (StartRestoredZoneReply);
+  rpc AdoptWorkload(AdoptWorkloadRequest) returns (AdoptWorkloadReply);
 
   rpc ResolveZoneId(ResolveZoneIdRequest) returns (ResolveZoneIdReply);
   rpc ResolveZoneIds(ResolveZoneIdsRequest) returns (ResolveZoneIdsReply);
@@ -220,11 +223,77 @@ message ImportZoneStart {
   // Import under this zone id instead of a freshly allocated one. Empty
   // allocates a new id, which is what lets one snapshot seed many zones.
   string zone_id = 2;
+  // Restore the snapshot as the zone of a Kubernetes pod. The zone is left
+  // paused, with its host mounts unbound, until the pod's runtime claims it.
+  PodRestore restore = 4;
 }
 
 message ImportZoneReply {
   string zone_id = 1;
 }
+
+// The pod an imported zone is restored for. The three coordinates together are
+// what a runtime must present to claim the zone, so a pod cannot claim a zone
+// meant for another.
+message PodRestore {
+  string uid = 1;
+  string namespace = 2;
+  string name = 3;
+  // Containers of the source pod that had already completed, which are
+  // reported to the kubelet as exited instead of being run again.
+  repeated string completed_containers = 4;
+}
+
+// Claims the zone imported for a pod. Waits, up to the daemon's claim timeout,
+// for the import to exist. A zone can be claimed once.
+message ClaimRestoredZoneRequest {
+  string uid = 1;
+  string namespace = 2;
+  string name = 3;
+}
+
+message ClaimRestoredZoneReply {
+  string zone_id = 1;
+  repeated RestoredWorkload workloads = 2;
+  repeated string completed_containers = 3;
+}
+
+// A workload the restored zone was running, as the snapshot recorded it.
+message RestoredWorkload {
+  string workload_id = 1;
+  string container_name = 2;
+  string image = 3;
+  repeated RestoredMount mounts = 4;
+}
+
+// A host mount of a restored workload. The host path the snapshot recorded is
+// not reported and is never used: `AdoptWorkload` supplies the new one.
+message RestoredMount {
+  string target_path = 1;
+  bool read_only = 2;
+}
+
+// Resumes a claimed zone and brings its network and workload ids up to date.
+message StartRestoredZoneRequest {
+  string zone_id = 1;
+}
+
+message StartRestoredZoneReply {}
+
+// Binds a restored workload to the container the kubelet created for it.
+// `mounts` are the container's own mounts: each of the workload's recorded
+// mounts must have exactly one with the same target path and read-only flag,
+// and no other mount may be left over. Repeating the call for the same
+// workload replaces the earlier one.
+message AdoptWorkloadRequest {
+  string zone_id = 1;
+  string workload_id = 2;
+  string container_id = 3;
+  string sandbox_id = 4;
+  repeated MountSpec mounts = 5;
+}
+
+message AdoptWorkloadReply {}
 
 // Resolves zone "friendly name" to a singular zone UUID, if possible. Matching is exact.
 // See also `ResolveZoneIdsRequest` (plural).
