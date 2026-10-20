@@ -171,6 +171,17 @@ message ExportZoneRequest {
   // Compress record payloads. Guest memory compresses well; the cost is host
   // CPU during the export.
   bool compress = 3;
+  // Mounts whose host directory's contents the snapshot carries, so a restore
+  // can fill the directory it binds them to. Mounts that name the same host
+  // directory share one copy. Needs the daemon's `restore-mount-data-v0`
+  // feature.
+  repeated CapturedMountRef capture_mounts = 5;
+}
+
+// One mount of one of the zone's workloads.
+message CapturedMountRef {
+  string workload_id = 1;
+  string target_path = 2;
 }
 
 // Streamed reply for `ExportZone`. The first message carries `start`,
@@ -269,6 +280,9 @@ message RestoredMount {
   string target_path = 1;
   bool read_only = 2;
   string recorded_host_path = 3;
+  // The snapshot carries the contents of the host directory the mount was
+  // bound to, so a binding can ask for its new directory to be filled.
+  bool captured = 4;
 }
 
 // What a mount that has no host path yet is bound to until a container
@@ -287,6 +301,10 @@ message RestoredBinding {
   // configured restore bind roots. Empty binds `placeholder` instead.
   string host_path = 3;
   RestoredPlaceholder placeholder = 4;
+  // Fill `host_path`, which must be an empty directory, from the contents the
+  // snapshot carries for this mount before binding it. Every binding of
+  // mounts that share those contents must name the same directory.
+  bool fill = 5;
 }
 
 // Binds every mount of a claimed zone, then resumes it. Each mount of each
