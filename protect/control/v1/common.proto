@@ -212,6 +212,9 @@ message MountSpec {
   string target_path = 2;
   bool read_only = 3;
   MountCacheMode cache = 4;
+  // The host path as the orchestrator named it, when `host_path` is a resolved
+  // form of it. Empty means `host_path`.
+  string spec_host_path = 5;
 }
 
 message EnvironmentVariableSpec {
@@ -674,6 +677,9 @@ message WorkloadMountInfo {
   string target_path = 5;
   bool read_only = 6;
   MountCacheMode cache = 7;
+  // The host path as the orchestrator named it, before any resolution. Empty
+  // when it was not recorded.
+  string spec_host_path = 8;
   reserved 1, 4;
 }
 

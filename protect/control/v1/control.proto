@@ -207,6 +207,9 @@ message ExportZoneStart {
 // that the snapshot it wrote is as long as what the daemon sent.
 message ExportZoneComplete {
   uint64 total_bytes = 1;
+  // Bytes of archive carried for the mounts named in `capture_mounts`. A
+  // restore needs this much free space on the target host while it runs.
+  uint64 captured_mount_bytes = 2;
 }
 
 // Recreates a zone from a snapshot produced by `ExportZone`. The first message
@@ -283,6 +286,10 @@ message RestoredMount {
   // The snapshot carries the contents of the host directory the mount was
   // bound to, so a binding can ask for its new directory to be filled.
   bool captured = 4;
+  // The host path as the orchestrator named it when the mount was created,
+  // before any resolution. Empty for snapshots taken before it was recorded,
+  // in which case only `recorded_host_path` is known.
+  string recorded_spec_host_path = 5;
 }
 
 // What a mount that has no host path yet is bound to until a container
@@ -301,19 +308,30 @@ message RestoredBinding {
   // configured restore bind roots. Empty binds `placeholder` instead.
   string host_path = 3;
   RestoredPlaceholder placeholder = 4;
-  // Fill `host_path`, which must be an empty directory, from the contents the
-  // snapshot carries for this mount before binding it. Every binding of
-  // mounts that share those contents must name the same directory.
+  // Fill `host_path`, which must be set and name an empty directory, from the
+  // contents the snapshot carries for this mount before binding it. A binding
+  // that sets `fill` without `host_path` (that is, one bound to a
+  // `placeholder`) is refused. Every binding of mounts that share those
+  // contents must name the same directory.
   bool fill = 5;
+  // The host path as the orchestrator named it, when `host_path` is a resolved
+  // form of it. The daemon records it on the workload's mount status, so a
+  // later snapshot of this zone can be compared against the orchestrator's
+  // spec without touching the filesystem. Empty means `host_path`.
+  string spec_host_path = 6;
 }
 
 // Binds every mount of a claimed zone, then resumes it. Each mount of each
-// running workload needs exactly one binding. `annotations` are set on the
+// running workload not in `dropped_workload_ids` needs exactly one binding. `annotations` are set on the
 // zone's spec, replacing any with the same key.
 message StartRestoredZoneRequest {
   string zone_id = 1;
   repeated RestoredBinding bindings = 2;
   repeated AnnotationSpec annotations = 3;
+  // Workloads the snapshot carries that the orchestrator does not restore, such
+  // as a Kubernetes pod's ephemeral containers. They need no bindings, and the
+  // daemon destroys them as soon as the zone resumes.
+  repeated string dropped_workload_ids = 4;
 }
 
 message StartRestoredZoneReply {}
