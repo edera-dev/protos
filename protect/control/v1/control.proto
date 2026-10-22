@@ -34,6 +34,9 @@ service ControlService {
   rpc ForkZone(ForkZoneRequest) returns (ForkZoneReply);
   rpc ExportZone(ExportZoneRequest) returns (stream ExportZoneReply);
   rpc ImportZone(stream ImportZoneRequest) returns (ImportZoneReply);
+  rpc ClaimRestoredZone(ClaimRestoredZoneRequest) returns (ClaimRestoredZoneReply);
+  rpc StartRestoredZone(StartRestoredZoneRequest) returns (StartRestoredZoneReply);
+  rpc AdoptWorkload(AdoptWorkloadRequest) returns (AdoptWorkloadReply);
 
   rpc ResolveZoneId(ResolveZoneIdRequest) returns (ResolveZoneIdReply);
   rpc ResolveZoneIds(ResolveZoneIdsRequest) returns (ResolveZoneIdsReply);
@@ -168,6 +171,17 @@ message ExportZoneRequest {
   // Compress record payloads. Guest memory compresses well; the cost is host
   // CPU during the export.
   bool compress = 3;
+  // Mounts whose host directory's contents the snapshot carries, so a restore
+  // can fill the directory it binds them to. Mounts that name the same host
+  // directory share one copy. Needs the daemon's `restore-mount-data-v0`
+  // feature.
+  repeated CapturedMountRef capture_mounts = 5;
+}
+
+// One mount of one of the zone's workloads.
+message CapturedMountRef {
+  string workload_id = 1;
+  string target_path = 2;
 }
 
 // Streamed reply for `ExportZone`. The first message carries `start`,
@@ -193,6 +207,9 @@ message ExportZoneStart {
 // that the snapshot it wrote is as long as what the daemon sent.
 message ExportZoneComplete {
   uint64 total_bytes = 1;
+  // Bytes of archive carried for the mounts named in `capture_mounts`. A
+  // restore needs this much free space on the target host while it runs.
+  uint64 captured_mount_bytes = 2;
 }
 
 // Recreates a zone from a snapshot produced by `ExportZone`. The first message
@@ -220,11 +237,122 @@ message ImportZoneStart {
   // Import under this zone id instead of a freshly allocated one. Empty
   // allocates a new id, which is what lets one snapshot seed many zones.
   string zone_id = 2;
+  // Hold the imported zone, paused and with its host mounts unbound, for a
+  // runtime that claims it with the same `claim`.
+  RestoreClaim restore = 4;
 }
 
 message ImportZoneReply {
   string zone_id = 1;
 }
+
+// What an imported zone is held for. The zone waits, paused, until a runtime
+// presents the same `claim`, so a runtime can only claim a zone that was
+// imported for it. The daemon compares the string and nothing more.
+message RestoreClaim {
+  string claim = 1;
+  // Kept with the zone and returned when it is claimed. The daemon does not
+  // read them.
+  repeated AnnotationSpec annotations = 2;
+}
+
+// Claims the zone imported for `claim`. Waits, up to the daemon's claim
+// timeout, for the import to exist. A zone can be claimed once.
+message ClaimRestoredZoneRequest {
+  string claim = 1;
+}
+
+message ClaimRestoredZoneReply {
+  string zone_id = 1;
+  repeated RestoredWorkload workloads = 2;
+  // The annotations the import was given.
+  repeated AnnotationSpec annotations = 3;
+}
+
+// A workload the restored zone was running, as the snapshot recorded it.
+message RestoredWorkload {
+  string workload_id = 1;
+  string image = 2;
+  repeated AnnotationSpec annotations = 3;
+  repeated RestoredMount mounts = 4;
+}
+
+// A host mount of a restored workload. `recorded_host_path` names a path on the
+// host that took the snapshot and is only a hint: the daemon never binds it.
+message RestoredMount {
+  string target_path = 1;
+  bool read_only = 2;
+  string recorded_host_path = 3;
+  // The snapshot carries the contents of the host directory the mount was
+  // bound to, so a binding can ask for its new directory to be filled.
+  bool captured = 4;
+  // The host path as the orchestrator named it when the mount was created,
+  // before any resolution. Empty for snapshots taken before it was recorded,
+  // in which case only `recorded_host_path` is known.
+  string recorded_spec_host_path = 5;
+}
+
+// What a mount that has no host path yet is bound to until a container
+// supplies it.
+enum RestoredPlaceholder {
+  RESTORED_PLACEHOLDER_UNSPECIFIED = 0;
+  RESTORED_PLACEHOLDER_FILE = 1;
+  RESTORED_PLACEHOLDER_DIRECTORY = 2;
+}
+
+// Where one mount of a restored workload is bound before its zone resumes.
+message RestoredBinding {
+  string workload_id = 1;
+  string target_path = 2;
+  // The host path to bind. The daemon resolves it and refuses one outside its
+  // configured restore bind roots. Empty binds `placeholder` instead.
+  string host_path = 3;
+  RestoredPlaceholder placeholder = 4;
+  // Fill `host_path`, which must be set and name an empty directory, from the
+  // contents the snapshot carries for this mount before binding it. A binding
+  // that sets `fill` without `host_path` (that is, one bound to a
+  // `placeholder`) is refused. Every binding of mounts that share those
+  // contents must name the same directory.
+  bool fill = 5;
+  // The host path as the orchestrator named it, when `host_path` is a resolved
+  // form of it. The daemon records it on the workload's mount status, so a
+  // later snapshot of this zone can be compared against the orchestrator's
+  // spec without touching the filesystem. Empty means `host_path`.
+  string spec_host_path = 6;
+}
+
+// Binds every mount of a claimed zone, then resumes it. Each mount of each
+// running workload not in `dropped_workload_ids` needs exactly one binding. `annotations` are set on the
+// zone's spec, replacing any with the same key.
+message StartRestoredZoneRequest {
+  string zone_id = 1;
+  repeated RestoredBinding bindings = 2;
+  repeated AnnotationSpec annotations = 3;
+  // Workloads the snapshot carries that the orchestrator does not restore, such
+  // as a Kubernetes pod's ephemeral containers. They need no bindings, and the
+  // daemon destroys them as soon as the zone resumes.
+  repeated string dropped_workload_ids = 4;
+}
+
+message StartRestoredZoneReply {}
+
+// Binds a restored workload to the container a runtime created for it.
+// `mounts` are the container's own mounts: each of the workload's recorded
+// mounts must have exactly one with the same target path and read-only flag,
+// and no other mount may be left over. A mount whose resolved host path differs
+// from the one it is bound to is rebound. `annotations` are set on the
+// workload, replacing any with the same key. Repeating the call for the same
+// workload replaces the earlier one.
+message AdoptWorkloadRequest {
+  string zone_id = 1;
+  string workload_id = 2;
+  string container_id = 3;
+  string sandbox_id = 4;
+  repeated MountSpec mounts = 5;
+  repeated AnnotationSpec annotations = 6;
+}
+
+message AdoptWorkloadReply {}
 
 // Resolves zone "friendly name" to a singular zone UUID, if possible. Matching is exact.
 // See also `ResolveZoneIdsRequest` (plural).

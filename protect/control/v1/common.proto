@@ -212,6 +212,9 @@ message MountSpec {
   string target_path = 2;
   bool read_only = 3;
   MountCacheMode cache = 4;
+  // The host path as the orchestrator named it, when `host_path` is a resolved
+  // form of it. Empty means `host_path`.
+  string spec_host_path = 5;
 }
 
 message EnvironmentVariableSpec {
@@ -254,6 +257,23 @@ message ZoneStatus {
   google.protobuf.Timestamp created_at = 8;
   ZoneDeviceStatus device_status = 9;
   google.protobuf.Timestamp ready_at = 10;
+  // Set while the daemon holds the zone's guest paused without changing its
+  // state, as an export does for as long as it copies the zone: the state
+  // stays `READY`, so a runtime keeps the zone's sandbox up, but its
+  // workloads are frozen until this clears.
+  ZonePauseStatus pause_status = 11;
+}
+
+message ZonePauseStatus {
+  ZonePauseReason reason = 1;
+  // When the guest was paused.
+  google.protobuf.Timestamp since = 2;
+}
+
+enum ZonePauseReason {
+  ZONE_PAUSE_REASON_UNKNOWN = 0;
+  // An export is copying the zone's memory, disks and captured mounts.
+  ZONE_PAUSE_REASON_EXPORT = 1;
 }
 
 enum ZoneState {
@@ -657,6 +677,9 @@ message WorkloadMountInfo {
   string target_path = 5;
   bool read_only = 6;
   MountCacheMode cache = 7;
+  // The host path as the orchestrator named it, before any resolution. Empty
+  // when it was not recorded.
+  string spec_host_path = 8;
   reserved 1, 4;
 }
 
