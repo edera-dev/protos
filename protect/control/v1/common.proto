@@ -633,6 +633,17 @@ message WorkloadStatus {
   google.protobuf.Timestamp created_at = 6;
   WorkloadPciDeviceStatus pci_device_status = 7;
   WorkloadDeviceStatus device_status = 8;
+  // Unset until the zone starts the workload's main process.
+  WorkloadUserStatus user_status = 9;
+}
+
+// The identity the zone started the workload's main process with, after it
+// resolved the user and groups against the image's /etc/passwd and /etc/group.
+message WorkloadUserStatus {
+  uint32 uid = 1;
+  uint32 gid = 2;
+  // Every group the process is a member of, gid included, as `id -G` lists them.
+  repeated uint32 supplemental_gids = 3;
 }
 
 message WorkloadBlockDeviceInfo {
