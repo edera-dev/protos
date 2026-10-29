@@ -34,6 +34,7 @@ service ControlService {
   rpc ForkZone(ForkZoneRequest) returns (ForkZoneReply);
   rpc ExportZone(ExportZoneRequest) returns (stream ExportZoneReply);
   rpc ImportZone(stream ImportZoneRequest) returns (ImportZoneReply);
+  rpc ReplicateZone(ReplicateZoneRequest) returns (ReplicateZoneReply);
   rpc ClaimRestoredZone(ClaimRestoredZoneRequest) returns (ClaimRestoredZoneReply);
   rpc StartRestoredZone(StartRestoredZoneRequest) returns (StartRestoredZoneReply);
   rpc AdoptWorkload(AdoptWorkloadRequest) returns (AdoptWorkloadReply);
@@ -244,6 +245,68 @@ message ImportZoneStart {
 
 message ImportZoneReply {
   string zone_id = 1;
+}
+
+// How `ReplicateZone` makes its copies.
+enum ZoneReplicateMode {
+  // The daemon picks fork when the zone and the backend support it, and
+  // export/import otherwise.
+  ZONE_REPLICATE_MODE_AUTOMATIC = 0;
+  // Memory-shared copies, made as `ForkZone` makes them.
+  ZONE_REPLICATE_MODE_FORK = 1;
+  // The zone is exported to a file on the host, and each replica is imported
+  // from that file as `ImportZone` imports it.
+  ZONE_REPLICATE_MODE_EXPORT_IMPORT = 2;
+}
+
+// Makes one or more copies of a zone, by fork or by export and import. A mode
+// the zone or the backend does not support fails the call with the reason; the
+// daemon never falls back from a mode the caller named.
+message ReplicateZoneRequest {
+  // How to make the replicas. Automatic lets the daemon choose.
+  ZoneReplicateMode mode = 1;
+  // The zone to replicate. Not read when `export_path` is set, so it may be
+  // empty then, or name a zone that no longer exists.
+  string zone_id = 2;
+  // A snapshot file on the host, as returned by an earlier `ReplicateZone`.
+  // The export is skipped and each replica is imported from this file, which
+  // the daemon never deletes. Only valid for export/import, and so for
+  // `ZONE_REPLICATE_MODE_AUTOMATIC` it selects export/import.
+  string export_path = 3;
+  // Number of replicas. Zero means one. When `names` is set, it must have this
+  // many entries or this must be zero.
+  uint32 replicas = 4;
+  // Names for the replicas, in order. Empty entries, or no entries, keep the
+  // zone's name.
+  repeated string names = 5;
+  // Delete the snapshot file once the replicas are imported, when this call
+  // made it. A file named by `export_path` is the caller's and is never
+  // deleted. Fork ignores it.
+  bool delete_export = 6;
+}
+
+// The result of a `ReplicateZone` that got as far as making replicas. A replica
+// that failed is reported in `replicas` with its `error`, and the replicas
+// after it are not attempted, so a caller reads `replicas` rather than the
+// call's status to learn what exists.
+message ReplicateZoneReply {
+  // The mode used.
+  ZoneReplicateMode mode = 1;
+  // The snapshot file of an export/import, which the caller owns from here on
+  // and may pass as `export_path` to replicate again. Empty for fork, and when
+  // the daemon deleted the file.
+  string export_path = 2;
+  // One entry per requested replica, in the order of the request's `names`.
+  repeated ReplicatedZone replicas = 3;
+}
+
+message ReplicatedZone {
+  // Empty when the replica was not created.
+  string zone_id = 1;
+  // The name requested for the replica. Empty when it keeps the zone's name.
+  string name = 2;
+  // Why the replica was not created. Empty when it was.
+  string error = 3;
 }
 
 // What an imported zone is held for. The zone waits, paused, until a runtime
