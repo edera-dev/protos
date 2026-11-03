@@ -854,6 +854,84 @@ message ReadZoneMetricsRequest {
 // zone (zone metrics disabled, metrics stale, etc).
 message ReadZoneMetricsReply {
   MetricNode root = 1;
+  ZoneProcessTable processes = 2;
+}
+
+// A zone's processes. The field numbers match the zone's own process table
+// messages, so the daemon passes the records through as the zone sent them.
+message ZoneProcessTable {
+  reserved 1;
+  // The zone clock at the last update, in seconds. A process has run for
+  // `uptime - (start_time - boot_time)` seconds.
+  uint64 boot_time = 2;
+  uint64 uptime = 3;
+  // In pid order.
+  repeated ZoneProcess processes = 4;
+}
+
+message ZoneProcess {
+  uint32 pid = 1;
+  optional uint32 parent = 2;
+  string name = 3;
+  optional string executable = 4;
+  optional string cwd = 5;
+  repeated string cmdline = 6;
+  // Seconds since the epoch, on the zone clock.
+  uint64 start_time = 7;
+  uint32 uid = 8;
+  uint32 gid = 9;
+  uint32 euid = 10;
+  uint32 egid = 11;
+  // A kernel thread, which has no memory, executable or argv.
+  bool kernel = 12;
+  ZoneProcessSample sample = 13;
+  // The cgroup v2 path, as in /proc/<pid>/cgroup.
+  string cgroup = 14;
+  uint32 saved_uid = 15;
+  uint32 filesystem_uid = 16;
+  uint32 saved_gid = 17;
+  uint32 filesystem_gid = 18;
+  repeated uint32 groups = 19;
+  ZoneProcessCapabilities capabilities = 20;
+}
+
+// The values of a process that change with no kernel event, read at each
+// scrape.
+message ZoneProcessSample {
+  uint64 resident = 1;
+  uint64 virtual_memory = 2;
+  // The STAT column of ps, such as Ss or R+, without L (locked pages).
+  string state = 3;
+  // CPU time of all the threads, in milliseconds.
+  uint64 user_time_ms = 4;
+  uint64 system_time_ms = 5;
+  // Percent of one CPU since the previous scrape.
+  float cpu_usage = 6;
+  uint32 threads = 7;
+  // Page faults of all the threads.
+  uint64 minor_faults = 8;
+  uint64 major_faults = 9;
+  // Unset where the zone kernel cannot count them cheaply (before Linux 6.2).
+  optional uint32 open_files = 10;
+  // As in /proc/<pid>/stat: the kernel priority, the nice value, the policy
+  // (SCHED_*) and the real-time priority.
+  int32 priority = 11;
+  int32 nice = 12;
+  uint32 policy = 13;
+  uint32 realtime_priority = 14;
+  // The controlling terminal's device number (tty_nr), 0 for none.
+  uint32 terminal = 15;
+  uint32 session = 16;
+  uint32 process_group = 17;
+}
+
+// The capability sets, each a mask by capability number.
+message ZoneProcessCapabilities {
+  uint64 inheritable = 1;
+  uint64 permitted = 2;
+  uint64 effective = 3;
+  uint64 bounding = 4;
+  uint64 ambient = 5;
 }
 
 // Subscribes to a snoop stream of all IDM traffic passing
