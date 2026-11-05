@@ -477,10 +477,10 @@ message SetZoneVcpuAffinityRequest {
 
 message SetZoneVcpuAffinityReply {}
 
-// Send this control message to Edera to initiate a stream of ZoneKernelSyscallEvents
+// Send this control message to Edera to initiate a stream of kernel events
 // from the specified zone_id.
 // Sending `ZoneKernelEventStreamUpdate` initiates the stream, if one is not active, or updates
-// parameters of the stream, if one is.
+// the config of its source, if one is.
 // Sending `ZoneKernelEventStreamStop` terminates the stream, if one is active.
 //
 // See `MonitorZonekernelEventReply` for the kinds of stream responses to expect.
@@ -492,12 +492,13 @@ message MonitorZoneKernelEventRequest {
   }
 }
 
-// On new stream initiate, the first `MonitorZoneKernelEventReply` will be `ZoneKernelThreadSnapshotEvent`.
-// This snapshot contains the current thread and process state of the zone, and is used by the Falco plugin
-// to maintain a per-zone clientside cache of threads and processes to correlate later raw syscall events against.
+// The first `MonitorZoneKernelEventReply` is always `started`, which names the source the zone
+// streams and the config it applied. A client skips replies of a kind it does not know.
 //
-// After that first SnapshotEvent comes through, all subsequent events should be of type SyscallEvent.
-// Reinitializing the stream will send a new thread snapshot as head-of-line message, as well.
+// The syscall source then sends a `ZoneKernelThreadSnapshotEvent`. This snapshot contains the
+// current thread and process state of the zone, and is used by the Falco plugin to maintain a
+// per-zone clientside cache of threads and processes to correlate later raw syscall events against.
+// After it come `ZoneKernelSyscallEvent`s.
 //
 // Note that `zone_id` is intentionally duplicated within each
 // reply type, and not simply defined once in the toplevel
@@ -506,18 +507,128 @@ message MonitorZoneKernelEventReply {
   oneof reply {
     ZoneKernelSyscallEvent syscall = 2;
     ZoneKernelThreadSnapshotEvent threadsnap = 3;
+    ZoneKernelEventStreamStarted started = 4;
+    ZoneKernelNetworkEvents network_events = 5;
   }
 }
 
-// This request type may be sent to initiate a stream, if one is not active, or to update
-// the parameters of the current stream, if one is.
-// `enabled_syscalls` is the set of syscalls, by Linux syscall ID number.
-// See https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl
+// Initiates a stream, if one is not active, or updates the config of the current
+// stream's source, if one is. A request names its source, and the daemon fails a
+// stream whose source it does not know. A stream keeps the source it started with.
 message ZoneKernelEventStreamUpdate {
-  repeated uint32 enabled_syscalls = 2;
+  reserved 2;
+  reserved "enabled_syscalls";
+  oneof source {
+    ZoneKernelSyscallSource syscalls = 3;
+    ZoneKernelNetworkSource network_events = 4;
+  }
 }
 
-// Stops the current syscall event stream subscription.
+// The libscap syscall source, which the Falco plugin uses.
+message ZoneKernelSyscallSource {
+  // The syscalls to raise events for, by Linux syscall ID number. Empty selects the
+  // zone's default set.
+  // See https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl
+  repeated uint32 enabled_syscalls = 1;
+}
+
+// The source a stream runs, with the config the zone applied, which leaves out
+// any IDs it does not know.
+message ZoneKernelEventStreamStarted {
+  oneof source {
+    ZoneKernelSyscallSource syscalls = 1;
+    ZoneKernelNetworkSource network_events = 2;
+  }
+}
+
+// The zone's TCP connections and UDP flows. It sends `network_events` batches
+// after `started`. The zone fails a stream that names only protocols or a
+// direction it does not know.
+message ZoneKernelNetworkSource {
+  // Report only these protocols. Empty reports every protocol.
+  repeated ZoneKernelNetworkProtocol protocols = 1;
+  // Report only this direction. Unspecified reports both, and events whose
+  // direction is not known.
+  ZoneKernelNetworkDirection direction = 2;
+  // Report only this process, by its PID in the zone's root PID namespace.
+  optional uint32 pid = 3;
+}
+
+enum ZoneKernelNetworkProtocol {
+  ZONE_KERNEL_NETWORK_PROTOCOL_UNSPECIFIED = 0;
+  ZONE_KERNEL_NETWORK_PROTOCOL_TCP = 1;
+  ZONE_KERNEL_NETWORK_PROTOCOL_UDP = 2;
+}
+
+// The network events the zone saw since its previous batch.
+message ZoneKernelNetworkEvents {
+  string zone_id = 1;
+  repeated ZoneKernelNetworkEvent events = 2;
+  // Events the zone lost since the previous batch, because its buffer was full.
+  uint64 dropped = 3;
+  // Batches the zone skipped for this stream since the previous batch, because
+  // the stream fell behind. Their events are lost, and are not in `dropped`.
+  uint64 skipped_batches = 4;
+}
+
+message ZoneKernelNetworkEvent {
+  // Nanoseconds since the epoch, on the zone clock.
+  uint64 timestamp = 1;
+  // The process that made the connection or sent or received the datagram, in
+  // the zone's root PID namespace.
+  uint32 pid = 2;
+  string comm = 3;
+  oneof event {
+    ZoneKernelTcpConnection tcp_connection = 16;
+    ZoneKernelUdpFlow udp_flow = 17;
+  }
+}
+
+// Which side started a connection or flow.
+enum ZoneKernelNetworkDirection {
+  // Not known: a UDP flow on a socket that existed before the network source
+  // loaded, whose first datagram may not have been seen.
+  ZONE_KERNEL_NETWORK_DIRECTION_UNSPECIFIED = 0;
+  // The zone's process started it: it called connect(), or sent a UDP flow's
+  // first datagram.
+  ZONE_KERNEL_NETWORK_DIRECTION_OUTBOUND = 1;
+  // A peer started it: the zone's process accepted the connection, or received
+  // a UDP flow's first datagram.
+  ZONE_KERNEL_NETWORK_DIRECTION_INBOUND = 2;
+}
+
+// A TCP connection: an outbound connect that finished, or an inbound
+// connection that a process accepted.
+message ZoneKernelTcpConnection {
+  // 4 bytes for IPv4, 16 for IPv6.
+  bytes local_address = 1;
+  uint32 local_port = 2;
+  bytes remote_address = 3;
+  uint32 remote_port = 4;
+  // Outbound: nanoseconds from the SYN to the result. Inbound: nanoseconds
+  // the connection waited, after its handshake, for the process to accept it.
+  uint64 latency = 5;
+  // False for an outbound connect that failed: refused, unreachable, or timed
+  // out. Always true for inbound.
+  bool established = 6;
+  ZoneKernelNetworkDirection direction = 7;
+}
+
+// The first datagram of a UDP flow: a socket and a remote address and port.
+// Later datagrams of the flow, either way, are not reported, unless the zone
+// forgets the flow under load. The event's process is the one that sent or
+// received that first datagram.
+message ZoneKernelUdpFlow {
+  // 4 bytes for IPv4, 16 for IPv6. All zeros when the socket is not bound to
+  // a local address.
+  bytes local_address = 1;
+  uint32 local_port = 2;
+  bytes remote_address = 3;
+  uint32 remote_port = 4;
+  ZoneKernelNetworkDirection direction = 5;
+}
+
+// Stops the current kernel event stream subscription.
 message ZoneKernelEventStreamStop {}
 
 // roughly maps to libscap's `scap_threadinfo` type.
