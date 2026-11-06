@@ -40,9 +40,32 @@ message ZoneSpec {
   // container path. KVM-only; mutually exclusive with `kernel`, `initrd`,
   // `addons`, `scratch_disk` (rejected by the daemon).
   ZoneVmImageSpec vm_image = 14;
+  // What should be done with a zone whose VM/domain is gone. Applies when the daemon finds
+  // no domain for a zone it did not destroy, such as after a host reboot, after a restart in
+  // which it could not adopt the VM/domain, or when the VM/domain was manually terminated outside
+  // the daemon while the daemon was not running.
+  // Note that a VM/domain that is terminated while the daemon is running reports a Failed status,
+  // and this policy does not apply in those cases.
+  // A create that leaves it unset gets RECREATE.
+  optional ZoneLossPolicy loss_policy = 15;
 
   reserved 13;
   reserved "control_api";
+}
+
+// What the daemon does with a zone whose VM/domain is gone. Applies when the daemon finds
+// no domain for a zone it did not destroy, such as after a host reboot, after a restart in
+// which it could not adopt the VM/domain, or when the VM/domain was manually terminated outside
+// the daemon while the daemon was not running.
+// Note that a VM/domain that is terminated while the daemon is running reports a Failed status,
+// and this policy does not apply in those cases.
+enum ZoneLossPolicy {
+  // Recreate a new domain for the zone from its spec. Currently, the workloads that
+  // existed in the lost domain will not be implicitly recreated.
+  ZONE_LOSS_POLICY_RECREATE = 0;
+  // Release all zone resources and records and forget/destroy that zone. The client
+  // is free to recreate a new zone itself by issuing another ZoneCreate.
+  ZONE_LOSS_POLICY_DESTROY = 1;
 }
 
 enum ZoneResourceAdjustmentPolicy {
