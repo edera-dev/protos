@@ -83,6 +83,7 @@ message ZoneResourcesSpec {
   uint32 target_cpus = 4;
   VcpuAffinitiesSpecSet cpus_affinities_set = 8;
   ZoneResourceAdjustmentPolicy adjustment_policy = 5;
+  optional uint32 cpu_limit_millicpus = 9;
 }
 
 message KernelModuleParameter {
