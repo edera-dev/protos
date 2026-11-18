@@ -83,6 +83,11 @@ message ZoneResourcesSpec {
   uint32 target_cpus = 4;
   VcpuAffinitiesSpecSet cpus_affinities_set = 8;
   ZoneResourceAdjustmentPolicy adjustment_policy = 5;
+  // CPU time the zone may use, in thousandths of one physical CPU; unset or 0
+  // means no limit. In UpdateZoneResources, unset keeps the zone's limit and 0
+  // removes it. At most max_cpus * 1000; a zone created without vCPU counts
+  // gets enough vCPUs for its limit.
+  optional uint32 cpu_limit_millicpus = 9;
 }
 
 message KernelModuleParameter {
