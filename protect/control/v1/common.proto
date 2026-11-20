@@ -48,6 +48,9 @@ message ZoneSpec {
   // and this policy does not apply in those cases.
   // A create that leaves it unset gets RECREATE.
   optional ZoneLossPolicy loss_policy = 15;
+  // Volumes whose data stays in the zone, each on a disk the daemon backs with
+  // an ext4 image that the caller creates and owns.
+  repeated ZoneVolumeSpec volumes = 16;
 
   reserved 13;
   reserved "control_api";
@@ -469,6 +472,7 @@ message WorkloadSpec {
   optional int32 oom_score_adj = 12;
   repeated WorkloadPciDeviceSpec pci_devices = 13;
   ObjectCapabilitySpec object_capabilities = 14;
+  repeated WorkloadVolumeMount volume_mounts = 15;
 }
 
 // Object-capability grants for a workload. Privilege is reached by connecting
@@ -561,6 +565,27 @@ message CgroupLimit {
 
 message WorkloadScratchMount {
   string path = 1;
+}
+
+message ZoneVolumeSpec {
+  // Unique within the zone, and the name a workload mounts the volume by.
+  string name = 1;
+  // An existing ext4 image, which the daemon attaches but never creates or deletes.
+  string image_path = 2;
+  // Owner and mode bits the volume's root directory takes when the zone
+  // creates it.
+  uint32 uid = 3;
+  uint32 gid = 4;
+  uint32 mode = 5;
+}
+
+message WorkloadVolumeMount {
+  // One of the zone's `volumes`.
+  string volume = 1;
+  // A relative path inside the volume to mount in place of its root.
+  string sub_path = 2;
+  string target_path = 3;
+  bool read_only = 4;
 }
 
 enum SeccompProfileType {
@@ -903,6 +928,7 @@ enum ZoneDiskStatusDiskPurpose {
   ZONE_DISK_STATUS_DISK_PURPOSE_UNKNOWN = 0;
   ZONE_DISK_STATUS_DISK_PURPOSE_ADDONS = 1;
   ZONE_DISK_STATUS_DISK_PURPOSE_SCRATCH = 2;
+  ZONE_DISK_STATUS_DISK_PURPOSE_VOLUME = 3;
 }
 
 message ZoneDiskStatus {
@@ -912,6 +938,8 @@ message ZoneDiskStatus {
   string filesystem_type = 4;
   ZoneDiskStatusDiskPurpose purpose = 5;
   bool delete = 6;
+  // The zone volume this disk backs, set for purpose `VOLUME`.
+  string volume = 7;
 }
 
 message ZoneMountStatus {
