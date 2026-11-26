@@ -32,6 +32,8 @@ service ControlService {
   rpc SuspendZone(SuspendZoneRequest) returns (SuspendZoneReply);
   rpc ResumeZone(ResumeZoneRequest) returns (ResumeZoneReply);
   rpc ForkZone(ForkZoneRequest) returns (ForkZoneReply);
+  rpc HotplugZoneShare(HotplugZoneShareRequest) returns (HotplugZoneShareReply);
+  rpc UnplugZoneShare(UnplugZoneShareRequest) returns (UnplugZoneShareReply);
   rpc ExportZone(ExportZoneRequest) returns (stream ExportZoneReply);
   rpc ImportZone(stream ImportZoneRequest) returns (ImportZoneReply);
   rpc ReplicateZone(ReplicateZoneRequest) returns (ReplicateZoneReply);
@@ -1343,6 +1345,28 @@ message DestroyNetworkReservationRequest {
 }
 
 message DestroyNetworkReservationReply {}
+
+// Shares a host directory with a running zone, and mounts it in the zone at `/layers/<tag>`.
+message HotplugZoneShareRequest {
+  string zone_id = 1;
+  string host_path = 2;
+  bool read_only = 3;
+}
+
+// Identifies the share for `UnplugZoneShareRequest`.
+message HotplugZoneShareReply {
+  string tag = 1;
+  uint64 device_id = 2;
+}
+
+// Unmounts a share from a zone and removes its device.
+message UnplugZoneShareRequest {
+  string zone_id = 1;
+  string tag = 2;
+  uint64 device_id = 3;
+}
+
+message UnplugZoneShareReply {}
 
 // Requests hypervisor debug state. Intended for debugging.
 message HypervisorDebugInfoRequest {}
